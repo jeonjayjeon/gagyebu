@@ -390,6 +390,9 @@ function analyzeTable(rows) {
     items.length = 0; merged.forEach(t => items.push(t));
   }
   items.forEach(t => { delete t._appr; delete t._signed; delete t._cancel; });
+  // 내 계좌끼리 주고받은 돈(계좌 정리·증권 이체 등)은 수입·지출이 아닌 이체로 처리
+  const OWN = /전성재|전\*재|^(토스\s*)?전\S{0,2}재$|증권|내\s?계좌|비대면예금해지|예금해지|적금|모으기|오픈뱅킹/;
+  items.forEach(t => { if (t.type !== '이체' && OWN.test(t.title)) { t.type = '이체'; t.book = '공통'; } });
   items.forEach(t => { if (t.type === '수입') t.book = guessIncomeBook(t.title); });
   items.forEach(t => { t.category = t.type === '이체' ? (/카드/.test(t.title) ? '카드대금' : '이체') : guessCategory(t.title, t.type, t.book); });
   return { items, source };

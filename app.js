@@ -13,7 +13,7 @@ const DEFAULT_CATS = [
   ['개인','지출','생활·마트','🧺','#22B07D',200000],['개인','지출','쇼핑','🛍️','#F04452',200000],['개인','지출','주거·통신','🏠','#6B7684',0],
   ['개인','지출','구독','📺','#8B5CF6',50000],['개인','지출','의료·건강','💊','#00B8D9',0],['개인','지출','문화·여가','🎬','#FFB800',100000],
   ['개인','지출','여행','✈️','#1FB6FF',0],['개인','지출','경조사·선물','🎁','#FF6B9A',0],['개인','지출','반려묘','🐈','#C08B5C',100000],
-  ['개인','지출','교육','📚','#4E5968',0],['개인','지출','기타','📦','#B0B8C1',0],
+  ['개인','지출','교육','📚','#4E5968',0],['개인','지출','보험·금융','🛡️','#5B6B8C',0],['개인','지출','뷰티·미용','💇','#E86AA6',0],['개인','지출','기타','📦','#B0B8C1',0],
   ['개인','수입','급여·강의료','💼','#3182F6',0],['개인','수입','이자·환급','🏦','#22B07D',0],['개인','수입','기타수입','💰','#FFB800',0],
   ['사업','수입','디자인 매출','🎨','#3182F6',0],['사업','수입','강연·자문','🎤','#8B5CF6',0],['사업','수입','지원금','🏛️','#22B07D',0],['사업','수입','기타 매출','💰','#FFB800',0],
   ['사업','지출','외주비','🤝','#F04452',0],['사업','지출','장비·소모품','💻','#4E5968',0],['사업','지출','소프트웨어·구독','🧩','#8B5CF6',150000],
@@ -28,6 +28,15 @@ const DEFAULT_METHODS = [
 
 /* 가맹점 → 카테고리 추정 규칙 (기록이 쌓이면 실제 사용 이력이 우선) */
 const RULES = [
+  [/메리츠|화재|생명|보험/, '보험·금융'],
+  [/헤어|미용|네일|올리브영|에이피알/, '뷰티·미용'],
+  [/배민클럽|와우\s?멤버십|구글페이먼트|바로알림/, '구독'],
+  [/구글클라우드|한글과컴퓨터|유피소프트/, '소프트웨어·구독'],
+  [/우아한형제들|쿠팡이츠|KFC|케이에프씨|소바|면옥|회관|도시락|한솥|김선생|뚝배기|어묵|순대|타코|샤브|반찬|푸드|국수|돈부리|부대찌개|맥주|강정|파파존스|파파이스|핵밥/, '식비'],
+  [/이비인후과/, '의료·건강'],
+  [/아마노|파크|충전소|LPG|대교|블루라인|우버|서울교통공사|철도/, '교통'],
+  [/이케아|무인양품|스타필드|더현대|Temu/i, '쇼핑'],
+  [/씨유|지에스\(GS\)|생활협동조합|매점|문구|프린트|우체국|우정사업|코리아세븐/, '생활·마트'],
   [/스타벅스|커피|카페|투썸|이디야|메가|빽다방|컴포즈|폴바셋|블루보틀|베이커리|파리바게|뚜레쥬르|빵|디저트|배스킨|설빙/, '카페·간식'],
   [/택시|카카오\s?T|카카오모빌|티머니|코레일|KTX|SRT|지하철|버스|주유|GS칼텍스|SK에너지|S-OIL|오일|주차|하이패스|쏘카|타다/i, '교통'],
   [/쿠팡|무신사|29CM|지그재그|올리브영|다이소|네이버페이|11번가|G마켓|옥션|SSG|오늘의집|에이블리|유니클로|자라|H&M/i, '쇼핑'],
@@ -308,7 +317,10 @@ function analyzeTable(rows) {
     out: find(/^(출금액?|출금금액|찾으신금액)/),
     in: find(/^(입금액?|입금금액|맡기신금액)/),
     kind: find(/^(거래유형|구분|입출금구분|거래구분)$/),
-    memo: find(/^메모$/)
+    memo: find(/^메모$/),
+    cancel: find(/^취소(여부|구분)?$/),
+    appr: find(/^승인번호$/),
+    inst: find(/^할부개월$/)
   };
   if (col.date < 0 || (col.amount < 0 && col.out < 0 && col.in < 0)) return { error: '날짜와 금액 열을 찾지 못했어요.' };
   const headTxt = H.join('|') + '|' + rows.slice(0, hi).flat().join('|');
@@ -334,8 +346,26 @@ function analyzeTable(rows) {
     if (/카드대금|삼성카드/.test(title) && type === '지출' && source === '토스뱅크') type = '이체';
     const time = col.time > -1 ? toTimeStr(r[col.time]) : toTimeStr(r[col.date]);
     const book = '개인';
-    items.push({ id: uid(), date, time, type, book: type === '이체' ? '공통' : book, category: '', title, amount: Math.round(amt), method: source, memo: col.memo > -1 ? String(r[col.memo] || '') : '', source: source });
+    const signed = col.appr > -1 ? (toNum(r[col.amount]) || 0) : amt;
+    const inst = col.inst > -1 ? Number(r[col.inst]) || 0 : 0;
+    items.push({ id: uid(), date, time, type, book: type === '이체' ? '공통' : book, category: '', title, amount: Math.round(amt), method: source, memo: (col.memo > -1 ? String(r[col.memo] || '') : '') + (inst > 1 ? '할부 ' + inst + '개월' : ''), source: source, _appr: col.appr > -1 ? String(r[col.appr]) : '', _signed: signed, _cancel: col.cancel > -1 && /취소/.test(String(r[col.cancel])) });
   }
+  // 카드 내역: 같은 승인번호끼리 합산해 전체·부분취소와 가승인을 정리
+  if (col.appr > -1) {
+    const g = {};
+    items.forEach(t => { const k = t._appr + '|' + t.title; (g[k] = g[k] || []).push(t); });
+    const merged = [];
+    Object.values(g).forEach(list => {
+      const net = list.reduce((s, t) => s + t._signed, 0);
+      if (net <= 0 || /가승인|선승인/.test(list[0].title)) return;
+      const base = list.reduce((a, b) => (b._signed > a._signed ? b : a));
+      base.amount = Math.round(net);
+      if (list.some(t => t._cancel)) base.memo = (base.memo + ' 부분취소 반영').trim();
+      merged.push(base);
+    });
+    items.length = 0; merged.forEach(t => items.push(t));
+  }
+  items.forEach(t => { delete t._appr; delete t._signed; delete t._cancel; });
   items.forEach(t => { t.category = t.type === '이체' ? (/카드/.test(t.title) ? '카드대금' : '이체') : guessCategory(t.title, t.type, t.book); });
   return { items, source };
 }

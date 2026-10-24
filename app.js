@@ -581,9 +581,6 @@ function viewSettings() {
     <section class="card"><h2>내역 가져오기</h2>
       <p class="help">카드 문자나 토스 알림을 붙여 넣거나, 토스뱅크·삼성카드에서 내려받은 거래내역 파일을 올리면 한 번에 정리해요. 이미 있는 내역은 건너뛰어요.</p>
       <div class="btn-row"><button class="btn ghost" data-act="paste">문자 붙여넣기</button><button class="btn ghost" data-act="file">파일 올리기</button></div></section>
-    <section class="card"><h2>자동 입력</h2>
-      <p class="help">결제 알림이 오면 자동으로 기록되게 할 수 있어요. 아이폰은 단축어의 '메시지 수신' 자동화, 안드로이드는 MacroDroid 같은 앱에서 아래 주소로 문자 내용을 보내면 돼요.</p>
-      ${isDemo() ? '<p class="help">시트와 연결한 뒤에 쓸 수 있어요.</p>' : `<button class="btn ghost" data-act="autoguide">설정 방법 보기</button>`}</section>
     <section class="card"><h2>연결</h2>
       <a class="set-row" href="${sheetUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none"><b style="font-weight:600">Google 시트 열기</b><span>Jay 가계부</span></a>
       ${isDemo() ? '' : `<button class="set-row" data-act="sync"><b style="font-weight:600">지금 동기화</b><span>${S.lastSync ? fmtTime(S.lastSync) + ' 맞춤' : ''}</span></button>`}
@@ -633,7 +630,6 @@ function bindMain() {
   on('[data-act="add"]', () => openSheet());
   on('[data-act="paste"]', openPaste);
   on('[data-act="file"]', () => $('#fileIn').click());
-  on('[data-act="autoguide"]', openAutoGuide);
   on('[data-act="sync"]', () => pull());
   on('[data-act="theme"]', () => { const order = ['auto', 'light', 'dark']; S.ui.theme = order[(order.indexOf(S.ui.theme || 'auto') + 1) % 3]; saveUI(); applyTheme(); render(); });
   on('[data-act="logout"]', () => { if (!isDemo() && !confirm('이 기기에서 연결을 해제할까요? 시트의 데이터는 그대로 남아요.')) return; S.cfg = null; S.data = null; S.queue = []; LS.del(K.cfg); LS.del(K.cache); LS.del(K.queue); render(); });

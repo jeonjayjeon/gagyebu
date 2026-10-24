@@ -529,7 +529,7 @@ function rowHtml(t) {
 /* 내역 */
 function viewList() {
   const f = S.filter;
-  const srcFilter = f.uni || f.client;
+  const srcFilter = f.uni || f.client || f.acct;
   const per = S.ui.iperiod || 'year';
   let list = srcFilter && per === 'year' ? txs().filter(t => t.date.slice(0, 4) === S.ym.slice(0, 4) && t.date.slice(0, 7) <= S.ym) : byBook(inMonth(txs(), S.ym), S.ui.book);
   if (f.type !== '전체') list = list.filter(t => t.type === f.type);
@@ -537,6 +537,7 @@ function viewList() {
   if (f.cat) list = list.filter(t => t.category === f.cat);
   if (f.uni) list = list.filter(t => isLectureIncome(t) && (uniOf(t.title) || '기타 강의') === f.uni);
   if (f.client) list = list.filter(t => isProjectIncome(t) && clientOf(t) === f.client);
+  if (f.acct) list = list.filter(t => t.type === '수입' && (t.method || '미지정') === f.acct);
   if (f.q) { const q = f.q.toLowerCase(); list = list.filter(t => [t.title, t.category, t.memo, t.method].join(' ').toLowerCase().includes(q)); }
   list.sort(sortTx);
   const groups = {};
@@ -544,7 +545,7 @@ function viewList() {
   const usedMethods = [...new Set(byBook(inMonth(txs(), S.ym), S.ui.book).map(t => t.method).filter(Boolean))];
   const exp = list.filter(t => t.type === '지출').reduce((s, t) => s + Number(t.amount), 0), inc = list.filter(t => t.type === '수입').reduce((s, t) => s + Number(t.amount), 0);
   return `<div class="search">${ICON.search}<input id="q" type="search" placeholder="가맹점, 카테고리, 메모 검색" value="${esc(f.q)}"></div>
-  <div class="toolbar">${f.uni || f.client ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.uni || f.client)} ✕</button>` : ''}${['전체', '지출', '수입', '이체'].map(x => `<button class="chip" data-ftype="${x}" aria-pressed="${f.type === x}">${x}</button>`).join('')}
+  <div class="toolbar">${f.uni || f.client || f.acct ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.uni || f.client || f.acct)} ✕</button>` : ''}${['전체', '지출', '수입', '이체'].map(x => `<button class="chip" data-ftype="${x}" aria-pressed="${f.type === x}">${x}</button>`).join('')}
     ${usedMethods.map(m => `<button class="chip" data-fmethod="${esc(m)}" aria-pressed="${f.method === m}">${esc(m)}</button>`).join('')}
     ${f.cat ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.cat)} ✕</button>` : ''}
 </div>
@@ -633,7 +634,10 @@ function viewIncome(book) {
   const mx = Math.max(1, ...ser.map(s => (showL ? s.L : 0) + (showP ? s.P : 0)));
   const trend = (L + P) || ser.some(s => s.L || s.P) ? `<section class="card"><h2>월별 수입 흐름</h2><div class="bars">${ser.map(s => `<div class="bar-col ${s.ym === S.ym ? 'now' : ''}"><div class="bar-pair" style="flex-direction:column;justify-content:flex-end;align-items:center;gap:2px">${showP ? `<i style="height:${s.P / mx * 100}%;width:22px;background:#8B5CF6" title="프로젝트 ${wonU(s.P)}"></i>` : ''}${showL ? `<i style="height:${s.L / mx * 100}%;width:22px;background:var(--blue)" title="강의 ${wonU(s.L)}"></i>` : ''}</div><span>${Number(s.ym.slice(5))}월</span></div>`).join('')}</div>
     <div class="legend">${showL ? '<span><i style="background:var(--blue)"></i>강의</span>' : ''}${showP ? '<span><i style="background:#8B5CF6"></i>프로젝트</span>' : ''}</div></section>` : '';
-  return summary + lCard + pCard + trend;
+  const incAll = inPeriod.filter(t => t.type === '수입' && (book === '전체' || t.book === book));
+  const ag = group(incAll, t => t.method || '미지정');
+  const aCard = ag.length > 1 ? `<section class="card"><h2>계좌별 입금</h2>${rowsOf(ag, 'acct', '🏦', '#00A661', ag[0][1].sum)}</section>` : '';
+  return summary + lCard + pCard + aCard + trend;
 }
 
 /* 설정 */
@@ -702,9 +706,10 @@ function bindMain() {
   document.querySelectorAll('[data-budget]').forEach(b => b.onclick = () => openBudget(b.dataset.budget));
   document.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { S.filter.type = b.dataset.ftype; render(); });
   document.querySelectorAll('[data-fmethod]').forEach(b => b.onclick = () => { S.filter.method = S.filter.method === b.dataset.fmethod ? '' : b.dataset.fmethod; render(); });
-  document.querySelectorAll('[data-fcat]').forEach(b => b.onclick = () => { S.filter.cat = ''; S.filter.uni = ''; S.filter.client = ''; render(); });
+  document.querySelectorAll('[data-fcat]').forEach(b => b.onclick = () => { S.filter.cat = ''; S.filter.uni = ''; S.filter.client = ''; S.filter.acct = ''; render(); });
   document.querySelectorAll('[data-uni]').forEach(b => b.onclick = () => { S.filter = { type: '수입', q: '', method: '', uni: b.dataset.uni }; S.ui.tab = 'list'; render(); window.scrollTo(0, 0); });
   document.querySelectorAll('[data-client]').forEach(b => b.onclick = () => { S.filter = { type: '수입', q: '', method: '', client: b.dataset.client }; S.ui.tab = 'list'; render(); window.scrollTo(0, 0); });
+  document.querySelectorAll('[data-acct]').forEach(b => b.onclick = () => { S.filter = { type: '수입', q: '', method: '', acct: b.dataset.acct }; S.ui.tab = 'list'; render(); window.scrollTo(0, 0); });
   document.querySelectorAll('[data-iperiod]').forEach(b => b.onclick = () => { S.ui.iperiod = b.dataset.iperiod; saveUI(); render(); });
   const q = $('#q'); if (q) q.oninput = () => { S.filter.q = q.value; const pos = q.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
   const qf = $('#quickForm');

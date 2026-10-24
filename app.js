@@ -182,6 +182,27 @@ function lastByTitle(title) {
   const list = txs().filter(t => (t.title || '').trim().toLowerCase() === key);
   return list.length ? list[list.length - 1] : null;
 }
+/* ───────────────────────── 수입 출처 (대학별 강의 / 프로젝트) ───────────────────────── */
+const UNI_ALIAS = { '홍대': '홍익대학교', '홍익대': '홍익대학교', '과기대': '서울과학기술대학교', '서울과기대': '서울과학기술대학교', '서울과학기술대': '서울과학기술대학교', '과학기술대': '서울과학기술대학교' };
+function uniOf(title) {
+  const t = String(title || '').replace(/\(주\)|㈜|주식회사/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const k of Object.keys(UNI_ALIAS).sort((a, b) => b.length - a.length)) if (t.includes(k + '학교') || new RegExp(k + '(?![가-힣])').test(t)) return UNI_ALIAS[k];
+  let m = t.match(/([가-힣A-Za-z]{1,10}?)(대학교|대학)/);
+  if (!m) m = t.match(/([가-힣A-Za-z]{1,10}?)대(?![가-힣])/);
+  if (!m) return '';
+  let name = m[1].replace(/^(학교법인|국립|사립)/, '') + '대학교';
+  return UNI_ALIAS[m[1] + '대'] || name;
+}
+const isLectureIncome = t => t.type === '수입' && t.book !== '사업' && (!!uniOf(t.title) || /강의|강사|교원|시간강사|겸임/.test(t.title + ' ' + (t.memo || '')));
+const isProjectIncome = t => t.type === '수입' && t.book === '사업';
+function clientOf(t) { return String(t.title || '').replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim() || '거래처 미기재'; }
+function guessIncomeBook(title) {
+  if (uniOf(title) || /강의|강사|월급|급여|이자|환급|캐시백/.test(title)) return '개인';
+  if (/\(주\)|㈜|주식회사|유한회사|용역|디자인|프로젝트|계약금|잔금|중도금|정산/.test(title)) return '사업';
+  if (/학회|협회|재단|진흥원|문화원|공사|공단/.test(title)) return '사업';
+  return '개인';
+}
+
 function guessCategory(title, type, book) {
   const h = lastByTitle(title);
   if (h && h.type === type && (h.book === book || type === '이체')) return h.category;
@@ -194,6 +215,9 @@ function guessCategory(title, type, book) {
       if (valid.includes(n)) return n;
     }
   }
+  if (type === '수입' && book !== '사업' && (uniOf(title) || /강의|강사|월급|급여/.test(title)) && valid.includes('급여·강의료')) return '급여·강의료';
+  if (type === '수입' && book === '사업' && /학회|협회|재단|진흥원|강연|자문|특강|심사/.test(title) && valid.includes('강연·자문')) return '강연·자문';
+  if (type === '수입' && book === '사업' && /지원금|보조금/.test(title) && valid.includes('지원금')) return '지원금';
   if (type === '수입') return book === '사업' ? (valid.includes('디자인 매출') ? '디자인 매출' : valid[0]) : (valid.includes('기타수입') ? '기타수입' : valid[0]);
   if (type === '이체') return valid[0] || '이체';
   return book === '사업' ? (valid.includes('기타 경비') ? '기타 경비' : valid[valid.length - 1]) : (valid.includes('기타') ? '기타' : valid[valid.length - 1]);
@@ -231,8 +255,8 @@ function parseQuick(text) {
     rest.push(tk);
   }
   out.title = rest.join(' ');
-  if (out.type !== '수입' && /(월급|급여|강의료|강사료|매출|입금|환급|이자|정산금)/.test(out.title)) out.type = '수입';
-  if (out.type === '수입' && /매출|정산|용역|디자인비|자문료/.test(out.title) && !/개인/.test(text)) out.book = '사업';
+  if (out.type !== '수입' && /(월급|급여|강의료|강사료|매출|입금|환급|이자|정산금|잔금|계약금|중도금|용역비|디자인비|자문료)/.test(out.title)) out.type = '수입';
+  if (out.type === '수입' && !/(^|\s)@?(개인|사업|업무|비즈)(\s|$)/.test(text)) out.book = guessIncomeBook(out.title);
   if (out.type === '이체') out.book = '공통';
   if (!out.category) out.category = guessCategory(out.title, out.type, out.book);
   const h = lastByTitle(out.title);
@@ -366,6 +390,7 @@ function analyzeTable(rows) {
     items.length = 0; merged.forEach(t => items.push(t));
   }
   items.forEach(t => { delete t._appr; delete t._signed; delete t._cancel; });
+  items.forEach(t => { if (t.type === '수입') t.book = guessIncomeBook(t.title); });
   items.forEach(t => { t.category = t.type === '이체' ? (/카드/.test(t.title) ? '카드대금' : '이체') : guessCategory(t.title, t.type, t.book); });
   return { items, source };
 }
@@ -504,10 +529,14 @@ function rowHtml(t) {
 /* 내역 */
 function viewList() {
   const f = S.filter;
-  let list = byBook(inMonth(txs(), S.ym), S.ui.book);
+  const srcFilter = f.uni || f.client;
+  const per = S.ui.iperiod || 'year';
+  let list = srcFilter && per === 'year' ? txs().filter(t => t.date.slice(0, 4) === S.ym.slice(0, 4) && t.date.slice(0, 7) <= S.ym) : byBook(inMonth(txs(), S.ym), S.ui.book);
   if (f.type !== '전체') list = list.filter(t => t.type === f.type);
   if (f.method) list = list.filter(t => t.method === f.method);
   if (f.cat) list = list.filter(t => t.category === f.cat);
+  if (f.uni) list = list.filter(t => isLectureIncome(t) && (uniOf(t.title) || '기타 강의') === f.uni);
+  if (f.client) list = list.filter(t => isProjectIncome(t) && clientOf(t) === f.client);
   if (f.q) { const q = f.q.toLowerCase(); list = list.filter(t => [t.title, t.category, t.memo, t.method].join(' ').toLowerCase().includes(q)); }
   list.sort(sortTx);
   const groups = {};
@@ -515,9 +544,10 @@ function viewList() {
   const usedMethods = [...new Set(byBook(inMonth(txs(), S.ym), S.ui.book).map(t => t.method).filter(Boolean))];
   const exp = list.filter(t => t.type === '지출').reduce((s, t) => s + Number(t.amount), 0), inc = list.filter(t => t.type === '수입').reduce((s, t) => s + Number(t.amount), 0);
   return `<div class="search">${ICON.search}<input id="q" type="search" placeholder="가맹점, 카테고리, 메모 검색" value="${esc(f.q)}"></div>
-  <div class="toolbar">${['전체', '지출', '수입', '이체'].map(x => `<button class="chip" data-ftype="${x}" aria-pressed="${f.type === x}">${x}</button>`).join('')}
+  <div class="toolbar">${f.uni || f.client ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.uni || f.client)} ✕</button>` : ''}${['전체', '지출', '수입', '이체'].map(x => `<button class="chip" data-ftype="${x}" aria-pressed="${f.type === x}">${x}</button>`).join('')}
     ${usedMethods.map(m => `<button class="chip" data-fmethod="${esc(m)}" aria-pressed="${f.method === m}">${esc(m)}</button>`).join('')}
-    ${f.cat ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.cat)} ✕</button>` : ''}</div>
+    ${f.cat ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.cat)} ✕</button>` : ''}
+</div>
   <div class="list-sum"><span>지출 <b class="num">${wonU(exp)}</b></span><span>수입 <b class="num" style="color:var(--blue)">${wonU(inc)}</b></span><span>${list.length}건</span></div>
   ${list.length ? Object.keys(groups).map(d => {
     const g = groups[d]; const de = g.filter(t => t.type === '지출').reduce((s, t) => s + Number(t.amount), 0);
@@ -564,10 +594,46 @@ function viewStats() {
   // 사업 손익표
   const pl = book !== '개인' ? `<section class="card"><h2>사업 손익</h2><table class="pl num"><thead><tr><th>월</th><th>매출</th><th>경비</th><th>순이익</th></tr></thead><tbody>${months.slice().reverse().map(ym => { const l = inMonth(txs(), ym); const a = sum(l, '수입', '사업'), b = sum(l, '지출', '사업'); return `<tr><td>${Number(ym.slice(5))}월</td><td>${won(a)}</td><td>${won(b)}</td><td class="${a - b < 0 ? 'neg' : a - b > 0 ? 'pos' : ''}">${won(a - b)}</td></tr>`; }).join('')}</tbody></table>
     <p class="help" style="margin:12px 0 0">종합소득세 신고 때 경비 증빙 정리에 그대로 쓸 수 있도록 시트의 '월별요약' 탭에도 같은 숫자가 계산돼요.</p></section>` : '';
-  return `<section class="card"><h2>최근 6개월</h2>${bars}<p class="insight" style="margin-top:16px">${insight}</p></section>
+  return `${viewIncome(book)}<section class="card"><h2>최근 6개월</h2>${bars}<p class="insight" style="margin-top:16px">${insight}</p></section>
     ${donut ? `<section class="card"><h2>${monthTitle()} 카테고리</h2>${donut}</section>` : ''}
     ${marr.length ? `<section class="card"><h2>결제수단별</h2>${marr.map(([m, v]) => `<div class="set-row"><b style="font-weight:600">${esc(m)}</b><span class="num" style="color:var(--ink);font-weight:700">${wonU(v)}</span></div>`).join('')}</section>` : ''}
     ${pl}`;
+}
+
+
+/* 수입 분석: 대학별 강의 수입 + 프로젝트(거래처)별 수입 */
+function viewIncome(book) {
+  const per = S.ui.iperiod || 'year';
+  const y = S.ym.slice(0, 4);
+  const inPeriod = per === 'month' ? inMonth(txs(), S.ym) : txs().filter(t => t.date.slice(0, 4) === y && t.date.slice(0, 7) <= S.ym);
+  const periodLabel = per === 'month' ? monthTitle() : y + '년';
+  const lect = inPeriod.filter(isLectureIncome), proj = inPeriod.filter(isProjectIncome);
+  const other = inPeriod.filter(t => t.type === '수입' && !isLectureIncome(t) && !isProjectIncome(t));
+  const tot = a => a.reduce((s, t) => s + Number(t.amount), 0);
+  const group = (arr, keyFn) => { const g = {}; arr.forEach(t => { const k = keyFn(t); (g[k] = g[k] || { sum: 0, n: 0, last: '' }); g[k].sum += Number(t.amount); g[k].n++; if (t.date > g[k].last) g[k].last = t.date; }); return Object.entries(g).sort((a, b) => b[1].sum - a[1].sum); };
+  const seg = `<div class="seg" role="group" aria-label="기간" style="margin-bottom:14px">${[['year', y + '년 누적'], ['month', monthTitle()]].map(([k, l]) => `<button data-iperiod="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</div>`;
+  const rowsOf = (arr, attr, icon, color, max) => arr.map(([k, v]) => `<button class="catbar" data-${attr}="${esc(k)}">
+      <span class="ico" style="background:${color}1F">${icon}</span>
+      <span class="row-main"><span class="top-line"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(k)}</span><span class="num">${wonU(v.sum)}</span></span>
+      <span class="track"><i style="width:${Math.max(3, v.sum / max * 100)}%;background:${color}"></i></span>
+      <span class="row-sub">${v.n}회 입금 · 최근 ${Number(v.last.slice(5, 7))}월 ${Number(v.last.slice(8))}일</span></span></button>`).join('');
+  const L = tot(lect), P = tot(proj), O = tot(other), T = L + P + O;
+  const showL = book !== '사업', showP = book !== '개인';
+  const share = (v) => T ? Math.round(v / T * 100) : 0;
+  const summary = `<section class="card"><h2>${periodLabel} 들어온 돈</h2>${seg}
+    <div class="hero-amt num" style="margin-top:0">${won(book === '사업' ? P : book === '개인' ? L + O : T)}<small>원</small></div>
+    ${T ? `<div class="pace" style="margin:14px 0 8px;display:flex;overflow:hidden">${showL && L ? `<i style="display:block;height:100%;width:${share(L)}%;background:var(--blue)"></i>` : ''}${showP && P ? `<i style="display:block;height:100%;width:${share(P)}%;background:#8B5CF6"></i>` : ''}${O && book !== '사업' ? `<i style="display:block;height:100%;width:${share(O)}%;background:var(--faint)"></i>` : ''}</div>` : ''}
+    <div class="hero-split">${showL ? `<div class="mini"><span>강의 수입</span><b class="num" style="color:var(--blue)">${wonU(L)}</b></div>` : ''}${showP ? `<div class="mini"><span>프로젝트 수입</span><b class="num" style="color:#8B5CF6">${wonU(P)}</b></div>` : ''}${book !== '사업' && O ? `<div class="mini"><span>기타 수입</span><b class="num">${wonU(O)}</b></div>` : ''}</div></section>`;
+  const lg = group(lect, t => uniOf(t.title) || '기타 강의'), pg = group(proj, clientOf);
+  const lCard = showL ? `<section class="card"><h2>대학별 강의 수입</h2>${lg.length ? rowsOf(lg, 'uni', '🎓', '#3182F6', lg[0][1].sum) : `<p class="help" style="margin:0">아직 강의 수입이 없어요. 입금자명에 대학 이름이 있으면 자동으로 대학별로 모아요. 직접 입력할 땐 '수원대 강의료 120만'처럼 적어 주세요.</p>`}</section>` : '';
+  const pCard = showP ? `<section class="card"><h2>프로젝트 수입</h2>${pg.length ? rowsOf(pg, 'client', '🎨', '#8B5CF6', pg[0][1].sum) : `<p class="help" style="margin:0">사업 장부의 수입이 거래처별로 모여요. '사업 OO브랜딩 잔금 300만'처럼 입력하면 바로 반영돼요.</p>`}</section>` : '';
+  // 월별 추이 (올해)
+  const months = []; for (let i = 5; i >= 0; i--) months.push(addMonth(S.ym, -i));
+  const ser = months.map(ym => { const l = inMonth(txs(), ym); return { ym, L: tot(l.filter(isLectureIncome)), P: tot(l.filter(isProjectIncome)) }; });
+  const mx = Math.max(1, ...ser.map(s => (showL ? s.L : 0) + (showP ? s.P : 0)));
+  const trend = (L + P) || ser.some(s => s.L || s.P) ? `<section class="card"><h2>월별 수입 흐름</h2><div class="bars">${ser.map(s => `<div class="bar-col ${s.ym === S.ym ? 'now' : ''}"><div class="bar-pair" style="flex-direction:column;justify-content:flex-end;align-items:center;gap:2px">${showP ? `<i style="height:${s.P / mx * 100}%;width:22px;background:#8B5CF6" title="프로젝트 ${wonU(s.P)}"></i>` : ''}${showL ? `<i style="height:${s.L / mx * 100}%;width:22px;background:var(--blue)" title="강의 ${wonU(s.L)}"></i>` : ''}</div><span>${Number(s.ym.slice(5))}월</span></div>`).join('')}</div>
+    <div class="legend">${showL ? '<span><i style="background:var(--blue)"></i>강의</span>' : ''}${showP ? '<span><i style="background:#8B5CF6"></i>프로젝트</span>' : ''}</div></section>` : '';
+  return summary + lCard + pCard + trend;
 }
 
 /* 설정 */
@@ -636,7 +702,10 @@ function bindMain() {
   document.querySelectorAll('[data-budget]').forEach(b => b.onclick = () => openBudget(b.dataset.budget));
   document.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { S.filter.type = b.dataset.ftype; render(); });
   document.querySelectorAll('[data-fmethod]').forEach(b => b.onclick = () => { S.filter.method = S.filter.method === b.dataset.fmethod ? '' : b.dataset.fmethod; render(); });
-  document.querySelectorAll('[data-fcat]').forEach(b => b.onclick = () => { S.filter.cat = ''; render(); });
+  document.querySelectorAll('[data-fcat]').forEach(b => b.onclick = () => { S.filter.cat = ''; S.filter.uni = ''; S.filter.client = ''; render(); });
+  document.querySelectorAll('[data-uni]').forEach(b => b.onclick = () => { S.filter = { type: '수입', q: '', method: '', uni: b.dataset.uni }; S.ui.tab = 'list'; render(); window.scrollTo(0, 0); });
+  document.querySelectorAll('[data-client]').forEach(b => b.onclick = () => { S.filter = { type: '수입', q: '', method: '', client: b.dataset.client }; S.ui.tab = 'list'; render(); window.scrollTo(0, 0); });
+  document.querySelectorAll('[data-iperiod]').forEach(b => b.onclick = () => { S.ui.iperiod = b.dataset.iperiod; saveUI(); render(); });
   const q = $('#q'); if (q) q.oninput = () => { S.filter.q = q.value; const pos = q.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
   const qf = $('#quickForm');
   if (qf) {

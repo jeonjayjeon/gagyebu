@@ -194,7 +194,9 @@ function uniOf(title) {
   let name = m[1].replace(/^(학교법인|국립|사립)/, '') + '대학교';
   return UNI_ALIAS[m[1] + '대'] || name;
 }
-const isLectureIncome = t => t.type === '수입' && t.book !== '사업' && (!!uniOf(t.title) || /강의|강사|교원|시간강사|겸임/.test(t.title + ' ' + (t.memo || '')));
+/* 입금자명에 학교가 없을 때: 메모 → 알려진 입금 패턴(과기대: 'N월강의료' → 우리은행 U드림) */
+function uniTx(t) { return uniOf(t.title) || uniOf(t.memo) || (/^\d{1,2}월\s?강의료$/.test(String(t.title).trim()) && /U드림/.test(t.method || '') ? '서울과학기술대학교' : ''); }
+const isLectureIncome = t => t.type === '수입' && t.book !== '사업' && (!!uniTx(t) || /강의|강사|교원|시간강사|겸임/.test(t.title + ' ' + (t.memo || '')));
 const isProjectIncome = t => t.type === '수입' && t.book === '사업';
 function clientOf(t) { return String(t.title || '').replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim() || '거래처 미기재'; }
 function guessIncomeBook(title) {
@@ -700,7 +702,7 @@ function viewList() {
   if (f.type !== '전체') list = list.filter(t => t.type === f.type);
   if (f.method) list = list.filter(t => t.method === f.method);
   if (f.cat) list = list.filter(t => t.category === f.cat);
-  if (f.uni) list = list.filter(t => isLectureIncome(t) && (uniOf(t.title) || '기타 강의') === f.uni);
+  if (f.uni) list = list.filter(t => isLectureIncome(t) && (uniTx(t) || '기타 강의') === f.uni);
   if (f.client) list = list.filter(t => isProjectIncome(t) && clientOf(t) === f.client);
   if (f.acct) list = list.filter(t => t.type === '수입' && (t.method || '미지정') === f.acct);
   if (f.q) { const q = f.q.toLowerCase(); list = list.filter(t => [t.title, t.category, t.memo, t.method].join(' ').toLowerCase().includes(q)); }
@@ -752,7 +754,7 @@ function viewIncome(book) {
   const L = tot(lect), P = tot(proj), O = tot(other), T = L + P + O;
   const showL = book !== '사업', showP = book !== '개인';
   const share = (v) => T ? Math.round(v / T * 100) : 0;
-  const lg = group(lect, t => uniOf(t.title) || '기타 강의'), pg = group(proj, clientOf);
+  const lg = group(lect, t => uniTx(t) || '기타 강의'), pg = group(proj, clientOf);
   const ag = group(inPeriod.filter(t => t.type === '수입'), t => t.method || '미지정');
   const tab = S.ui.incTab || 'uni';
   const tabs = [['uni', '대학별', L], ['proj', '프로젝트', P], ['acct', '계좌별', T]];

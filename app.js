@@ -512,7 +512,8 @@ function render() {
   if (!S.cfg) { root.innerHTML = viewOnboard(); bindOnboard(); return; }
   if (!S.data) S.data = { txs: [], categories: DEFAULT_CATS, methods: DEFAULT_METHODS, settings: { '개인 월예산': 2000000, '사업 월예산': 300000, '월 시작일': 1 } };
   const tab = S.ui.tab;
-  const body = tab === 'list' ? viewList() : tab === 'stats' ? viewStats() : tab === 'subs' ? viewRegular() : tab === 'settings' ? viewSettings() : viewHome();
+  if (tab === 'stats') S.ui.tab = 'home';
+  const body = tab === 'list' ? viewList() : tab === 'subs' ? viewRegular() : tab === 'settings' ? viewSettings() : viewHome();
   const showMonth = tab !== 'settings' && tab !== 'subs';
   root.innerHTML = `
   <div class="app">
@@ -526,7 +527,7 @@ function render() {
     <main>${body}</main>
   </div>
   <nav class="tabs" aria-label="메뉴"><div class="tabs-in">
-    ${tabBtn('home', '홈', ICON.home)}${tabBtn('list', '내역', ICON.list)}${tabBtn('stats', '분석', ICON.chart)}${tabBtn('subs', '정기결제', ICON.sub)}${tabBtn('settings', '설정', ICON.set)}
+    ${tabBtn('home', '홈', ICON.home)}${tabBtn('list', '내역', ICON.list)}${tabBtn('subs', '정기결제', ICON.sub)}${tabBtn('settings', '설정', ICON.set)}
   </div></nav>`;
   renderSync();
   bindMain();
@@ -579,7 +580,9 @@ function viewHome() {
   }).join('');
   const recent = [...list].sort(sortTx).slice(0, 5);
   return `${hero}
-    ${catHtml ? `<section class="card"><h2>어디에 썼나요<button class="more" data-tab="stats">분석</button></h2>${catHtml}</section>` : ''}
+    ${catHtml ? `<section class="card"><h2>어디에 썼나요</h2>${catHtml}</section>` : ''}
+    ${viewIncome('전체')}
+    ${viewStats()}
     <section class="card"><h2>최근 내역${recent.length ? '<button class="more" data-tab="list">전체</button>' : ''}</h2>
       ${recent.length ? recent.map(rowHtml).join('') : `<div class="empty-state"><div class="big">📄</div>이 달에는 내역이 없어요.<br>오른쪽 위 '엑셀 올리기'로 은행·카드 내역을 넣어 주세요.</div>`}
     </section>`;
@@ -675,9 +678,7 @@ function viewStats() {
   // 사업 손익표
   const pl = book !== '개인' ? `<section class="card"><h2>사업 손익</h2><table class="pl num"><thead><tr><th>월</th><th>매출</th><th>경비</th><th>순이익</th></tr></thead><tbody>${months.slice().reverse().map(ym => { const l = inMonth(txs(), ym); const a = sum(l, '수입', '사업'), b = sum(l, '지출', '사업'); return `<tr><td>${Number(ym.slice(5))}월</td><td>${won(a)}</td><td>${won(b)}</td><td class="${a - b < 0 ? 'neg' : a - b > 0 ? 'pos' : ''}">${won(a - b)}</td></tr>`; }).join('')}</tbody></table>
     <p class="help" style="margin:12px 0 0">종합소득세 신고 때 경비 증빙 정리에 그대로 쓸 수 있도록 시트의 '월별요약' 탭에도 같은 숫자가 계산돼요.</p></section>` : '';
-  return `${viewIncome(book)}<section class="card"><h2>최근 6개월</h2>${bars}<p class="insight" style="margin-top:16px">${insight}</p></section>
-    ${donut ? `<section class="card"><h2>${monthTitle()} 카테고리</h2>${donut}</section>` : ''}
-    `;
+  return `<section class="card"><h2>최근 6개월 흐름</h2>${bars}<p class="insight" style="margin-top:16px">${insight}</p></section>`;
 }
 
 

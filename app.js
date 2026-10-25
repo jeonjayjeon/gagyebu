@@ -28,6 +28,7 @@ const DEFAULT_METHODS = [
 
 /* 가맹점 → 카테고리 추정 규칙 (기록이 쌓이면 실제 사용 이력이 우선) */
 const RULES = [
+  [/에이치에스피개발|주차|파킹/, '교통'],
   [/메리츠|화재|생명|보험/, '보험·금융'],
   [/헤어|미용|네일|올리브영|에이피알/, '뷰티·미용'],
   [/배민클럽|와우\s?멤버십|구글페이먼트|바로알림/, '구독'],
@@ -731,6 +732,7 @@ const REG_GROUPS = {
   '할부': { icon: '🧾', color: '#FF8A3D' },
   '대출': { icon: '🏦', color: '#F04452' },
   '회비': { icon: '⛪', color: '#C08B5C' },
+  '주차·차량': { icon: '🅿️', color: '#1FB6FF' },
   '기타 정기': { icon: '🔁', color: '#8B95A1' }
 };
 // 카드 내역만으로는 구분이 안 되는 결제처(구글페이먼트·Apple)를 금액·영수증으로 세분
@@ -741,7 +743,8 @@ const REG_SPECIAL = [
   [t => /구글페이먼트/.test(t.title) && Number(t.amount) === 4990, { name: 'Google Play 앱 구독', group: '구독·멤버십', icon: '🟢', domain: 'play.google.com', note: '앱 이름 확인 필요' }],
   [t => /^apple$/i.test(t.title.trim()) && Number(t.amount) === 1100, { name: 'iCloud+ 50GB', group: '구독·멤버십', icon: '🍎', domain: 'icloud.com', note: 'Apple 결제 · 금액으로 추정' }],
   [t => /^apple$/i.test(t.title.trim()) && Number(t.amount) === 2900, { name: 'Apple 구독', group: '구독·멤버십', icon: '🍎', domain: 'apple.com', note: '앱 이름 확인 필요' }],
-  [t => /유현선/.test(t.title), { name: '성당 전례단 회비', group: '회비', icon: '⛪' }]
+  [t => /유현선/.test(t.title), { name: '성당 전례단 회비', group: '회비', icon: '⛪' }],
+  [t => /에이치에스피개발/.test(t.title), { name: '주차 월정기권', group: '주차·차량', icon: '🅿️', note: '에이치에스피개발' }]
 ];
 // [패턴, 이름, 묶음, 아이콘, 금액변동(사용량)·결제일 들쭉날쭉한 요금이면 true]
 const REG_KNOWN = [

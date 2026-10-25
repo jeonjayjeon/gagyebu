@@ -327,6 +327,17 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 .blab{font-size:12px;color:var(--sub)}.bcol.now .blab{color:var(--ink);font-weight:700}
 .avgline{position:absolute;left:0;right:0;border-top:1.5px dashed var(--faint);pointer-events:none}
 .avgline span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--sub);background:var(--surface);padding:0 4px}
+.span-seg{display:inline-flex;background:var(--surface2);border-radius:12px;padding:3px;gap:2px;margin-bottom:12px}
+.span-seg button{all:unset;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink3,#8B95A1);padding:6px 12px;border-radius:9px}
+.span-seg button[aria-pressed="true"]{background:var(--surface,#fff);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+main>.span-seg{margin:4px 0 10px}
+.hero-pill{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;color:var(--ink3,#8B95A1)}
+.hero-pill b{font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(49,130,246,.1)}.hero-pill b.up{color:var(--red);background:rgba(240,68,82,.1)}.hero-pill b.down{color:var(--blue)}
+.sp-items{display:flex;gap:8px;overflow-x:auto;margin:16px -4px 0;padding:0 4px 2px;scrollbar-width:none}
+.sp-item{all:unset;cursor:pointer;flex:none;width:72px;background:var(--surface2);border-radius:14px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.sp-item .ico{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:17px}
+.sp-item b{font-size:13px;color:var(--ink)}.sp-item em{font-style:normal;font-size:10.5px;color:var(--ink3,#8B95A1);white-space:nowrap;overflow:hidden;max-width:64px;text-overflow:ellipsis}
+.sp-empty{margin-top:14px;font-size:14px;color:var(--ink3,#8B95A1)}
 .bcards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 4px}
 .bcard{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface2);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}
 .bcard:active{transform:scale(.98)}
@@ -349,6 +360,6 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>실행 취소</button></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

@@ -590,7 +590,7 @@ function briefing(ym) {
   const regSum = cur.filter(t => regIds.has(t.id)).reduce((a, t) => a + Number(t.amount), 0);
   if (regSum) {
     const logos = act.filter(p => p.domain && p.items.some(t => t.date.slice(0, 7) === ym)).sort((a, b) => b.amount - a.amount).slice(0, 4);
-    out.push({ attr: 'data-tab="subs"', label: '정기결제', icon: '🔁', title: '고정 지출', big: shortWon(regSum), unit: `${pct(regSum, exp)}%`,
+    out.push({ attr: 'data-tab="subs"', label: '정기결제', icon: '🔁', title: '', big: shortWon(regSum), unit: `${pct(regSum, exp)}%`,
       foot: `<div class="bc-bar"><i style="width:${pct(regSum, exp)}%;background:var(--blue)"></i></div>${logos.length ? `<div class="bc-logos">${logos.map(p => logo(p, 'bc-fav')).join('')}</div>` : ''}` });
   }
   // 4) 월말 예상
@@ -601,7 +601,7 @@ function briefing(ym) {
     const proj = Math.round(regSum + regLeft + varSum / dayN * days);
     if (budget) {
       const over = proj > budget, w = Math.min(100, pct(proj, Math.max(proj, budget))), bw = Math.min(100, pct(budget, Math.max(proj, budget)));
-      out.push({ attr: '', label: '월말 예상', icon: over ? '⚠️' : '✅', title: over ? '예산 초과' : '예산 안', big: shortWon(proj), cls: over ? 'up' : 'ok', unit: `/ ${shortWon(budget)}`,
+      out.push({ attr: '', label: '월말 예상', icon: over ? '⚠️' : '✅', title: '', big: shortWon(proj), cls: over ? 'up' : 'ok', unit: `/ ${shortWon(budget)}`,
         foot: `<div class="bc-bar proj"><i style="width:${w}%;background:${over ? 'var(--red)' : 'var(--green,#1FB46A)'}"></i><s style="left:${bw}%"></s></div><div class="bc-dim">${over ? `${shortWon(proj - budget)} 넘어요` : `${shortWon(budget - proj)} 여유`}</div>` });
     }
   }
@@ -611,10 +611,28 @@ function briefHtml(ym) {
   const b = briefing(ym); if (!b.length) return '';
   return `<div class="bcards">${b.map(x => `<button class="bcard" ${x.attr}>
     <div class="bc-top"><span class="bc-ico">${x.icon}</span><span class="bc-label">${esc(x.label)}</span></div>
-    <div class="bc-title">${esc(x.title)}</div>
+    ${x.title ? `<div class="bc-title">${esc(x.title)}</div>` : ''}
     <div class="bc-big num ${x.cls || ''}">${x.big}<small>${esc(x.unit)}</small></div>
     ${x.foot}</button>`).join('')}</div>`;
 }
+/* 기간: 오늘 / 이번 주 / 이번 달 */
+function spanRange(span) {
+  const t = today();
+  if (span === 'day') return [t, t];
+  if (span === 'week') { const d = new Date(t + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return [ymd(d), t]; }
+  return monthRange(S.ym);
+}
+function ymd(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function spanAvg(span) {
+  const end = new Date(today() + 'T00:00:00'), n = span === 'day' ? 28 : 28;
+  const [a] = spanRange(span), st = new Date(a + 'T00:00:00'); st.setDate(st.getDate() - n);
+  const from = ymd(st), to = a;
+  const tot = txs().filter(t => t.type === '지출' && t.date >= from && t.date < to).reduce((s, t) => s + Number(t.amount), 0);
+  if (span === 'day') return Math.round(tot / 28);
+  const elapsed = Math.round((end - new Date(a + 'T00:00:00')) / 864e5) + 1; // 이번 주 지난 일수
+  return Math.round(tot / 28 * elapsed);
+}
+function spanSeg() { const sp = S.ui.span || 'month'; return `<div class="span-seg">${[['day', '오늘'], ['week', '이번 주'], ['month', '이번 달']].map(([k, l]) => `<button data-span="${k}" aria-pressed="${sp === k}">${l}</button>`).join('')}</div>`; }
 function viewHome() {
   const all = inMonth(txs(), S.ym), s = settings();
   const isNow = isNowMonth();
@@ -626,17 +644,30 @@ function viewHome() {
   const dayN = isNow ? Number(today().slice(8)) : 31;
   const prevSame = spentUntil(addMonth(S.ym, -1), dayN);
   const diff = exp - prevSame;
-  const cmp = prevSame ? `지난달 ${isNow ? '이맘때' : ''}보다 <b class="${diff > 0 ? 'up' : 'down'}">${shortWon(Math.abs(diff))}원 ${diff > 0 ? '더' : '덜'}</b> 썼어요` : '';
-  const hero = `<section class="card hero2">
-      <div class="hero-label">${isNow ? '이번 달' : monthTitle()} 쓴 돈</div>
+  const span = isNow ? (S.ui.span || 'month') : 'month';
+  const seg = isNow ? spanSeg() : '';
+  let hero;
+  if (span !== 'month') {
+    const [a, b] = spanRange(span), list = txs().filter(t => t.date >= a && t.date <= b);
+    const e = sum(list, '지출');
+    const avg = spanAvg(span), d = e - avg;
+    const items = list.filter(t => t.type === '지출').sort((x, y) => y.amount - x.amount);
+    hero = `<section class="card hero2">${seg}
+      <div class="hero-amt num">${won(e)}<small>원</small></div>
+      ${avg && e ? `<div class="hero-pill"><b class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${shortWon(Math.abs(d))}</b><span>평소 ${shortWon(avg)}</span></div>` : ''}
+      ${items.length ? `<div class="sp-items">${items.slice(0, 8).map(t => { const c = catOf(t); return `<button class="sp-item" data-span-go="${span}"><span class="ico" style="background:${c.color}1F">${c.icon}</span><b class="num">${shortWon(t.amount)}</b><em>${esc(((regOf(t) || {}).name || t.title.replace(/\(주\)|㈜|주식회사/g, '')).trim())}</em></button>`; }).join('')}</div>` : (avg ? `<div class="hero-pill"><span>평소 ${shortWon(avg)}</span></div>` : '')}
+    </section>`;
+  } else {
+    hero = `<section class="card hero2">${seg || `<div class="hero-label">${monthTitle()}</div>`}
       <div class="hero-amt num">${won(exp)}<small>원</small></div>
-      ${cmp ? `<div class="hero-note">${cmp}</div>` : ''}
+      ${prevSame ? `<div class="hero-pill"><b class="${diff > 0 ? 'up' : 'down'}">${diff > 0 ? '▲' : '▼'}${shortWon(Math.abs(diff))}</b><span>지난달${isNow ? ' 이맘때' : ''}</span></div>` : ''}
       ${briefHtml(S.ym)}
       ${budget ? `<div class="budget-line"><div class="pace"><div class="pace-fill ${exp > budget ? 'over' : ''}" style="width:${Math.min(100, pct)}%"></div></div>
-        <div class="pace-legend"><span>예산 ${shortWon(budget)}원의 ${pct}%</span><b class="${left < 0 ? 'over-t' : ''}">${left < 0 ? shortWon(-left) + '원 초과' : shortWon(left) + '원 남음'}</b></div></div>` : ''}
+        <div class="pace-legend"><span>예산 ${pct}%</span><b class="${left < 0 ? 'over-t' : ''}">${left < 0 ? shortWon(-left) + ' 초과' : shortWon(left) + ' 남음'}</b></div></div>` : ''}
       <div class="kv"><span>들어온 돈</span><b class="num plus">+${wonU(inc)}</b></div>
-      <div class="kv muted-row"><span>계좌간 거래 <em>합계 제외</em></span><b class="num">${wonU(tr)}</b></div>
+      <div class="kv muted-row"><span>계좌간 거래</span><b class="num">${wonU(tr)}</b></div>
     </section>`;
+  }
   // 다가오는 정기결제
   let upHtml = '';
   if (isNow) {
@@ -698,7 +729,9 @@ function viewList() {
   const f = S.filter;
   const srcFilter = f.uni || f.client || f.acct;
   const per = S.ui.iperiod || 'year';
+  const lspan = isNowMonth() && !srcFilter ? (S.ui.span || 'month') : 'month';
   let list = srcFilter && per === 'year' ? txs().filter(t => t.date.slice(0, 4) === S.ym.slice(0, 4) && t.date.slice(0, 7) <= S.ym) : byBook(inMonth(txs(), S.ym), S.ui.book);
+  if (lspan !== 'month') { const [a, b] = spanRange(lspan); list = txs().filter(t => t.date >= a && t.date <= b); }
   if (f.type !== '전체') list = list.filter(t => t.type === f.type);
   if (f.method) list = list.filter(t => t.method === f.method);
   if (f.cat) list = list.filter(t => t.category === f.cat);
@@ -711,7 +744,7 @@ function viewList() {
   list.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
   const usedMethods = [...new Set(byBook(inMonth(txs(), S.ym), S.ui.book).map(t => t.method).filter(Boolean))];
   const exp = list.filter(t => t.type === '지출').reduce((s, t) => s + Number(t.amount), 0), inc = list.filter(t => t.type === '수입').reduce((s, t) => s + Number(t.amount), 0);
-  return `<div class="search">${ICON.search}<input id="q" type="search" placeholder="가맹점, 카테고리, 메모 검색" value="${esc(f.q)}"></div>
+  return `${isNowMonth() && !srcFilter ? spanSeg() : ''}<div class="search">${ICON.search}<input id="q" type="search" placeholder="가맹점, 카테고리, 메모 검색" value="${esc(f.q)}"></div>
   <div class="toolbar">${f.uni || f.client || f.acct ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.uni || f.client || f.acct)} ✕</button>` : ''}${[['전체', '전체'], ['지출', '지출'], ['수입', '수입'], ['이체', '계좌간·송금']].map(([x, l]) => `<button class="chip" data-ftype="${x}" aria-pressed="${f.type === x}">${l}</button>`).join('')}
     ${usedMethods.map(m => `<button class="chip" data-fmethod="${esc(m)}" aria-pressed="${f.method === m}">${esc(m)}</button>`).join('')}
     ${f.cat ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.cat)} ✕</button>` : ''}
@@ -732,7 +765,7 @@ function viewStats() {
   const cur = series[5];
   const bars = `<div class="bars2">${series.map(s => `<div class="bcol ${s.ym === S.ym ? 'now' : ''}"><span class="bwrap"><span class="bval num">${s.exp ? shortWon(s.exp) : ''}</span><i style="height:${Math.max(2, Math.round(s.exp / max * 110))}px"></i></span><span class="blab">${Number(s.ym.slice(5))}월</span></div>`).join('')}${avg ? `<div class="avgline" style="bottom:${24 + avg / max * 110}px"><span>평균 ${shortWon(avg)}</span></div>` : ''}</div>`;
   const msg = avg ? `${monthTitle()} 지출은 평균보다 <b class="${cur.exp > avg ? 'up' : 'down'}">${shortWon(Math.abs(cur.exp - avg))}원 ${cur.exp > avg ? '많아요' : '적어요'}</b>` : '';
-  return `<section class="card"><h2>월별 지출</h2>${msg ? `<p class="insight" style="margin:-6px 0 10px">${msg}</p>` : ''}${bars}</section>`;
+  return `<section class="card"><h2>월별 지출</h2>${bars}</section>`;
 }
 
 /* 수입 분석: 대학별 강의 수입 + 프로젝트(거래처)별 수입 */
@@ -1033,6 +1066,8 @@ function bindMain() {
   on('[data-act="theme"]', () => { const order = ['auto', 'light', 'dark']; S.ui.theme = order[(order.indexOf(S.ui.theme || 'auto') + 1) % 3]; saveUI(); applyTheme(); render(); });
   on('[data-act="logout"]', () => { if (!isDemo() && !confirm('이 기기에서 연결을 해제할까요? 시트의 데이터는 그대로 남아요.')) return; S.cfg = null; S.data = null; S.queue = []; LS.del(K.cfg); LS.del(K.cache); LS.del(K.queue); render(); });
   document.querySelectorAll('[data-budget]').forEach(b => b.onclick = () => openBudget(b.dataset.budget));
+  document.querySelectorAll('[data-span]').forEach(b => b.onclick = () => { S.ui.span = b.dataset.span; saveUI(); render(); });
+  document.querySelectorAll('[data-span-go]').forEach(b => b.onclick = () => { S.ui.span = b.dataset.spanGo; S.filter = { type: '지출', q: '', method: '', cat: '' }; S.ui.tab = 'list'; saveUI(); render(); window.scrollTo(0, 0); });
   document.querySelectorAll('[data-ftype]').forEach(b => b.onclick = () => { S.filter.type = b.dataset.ftype; render(); });
   document.querySelectorAll('[data-fmethod]').forEach(b => b.onclick = () => { S.filter.method = S.filter.method === b.dataset.fmethod ? '' : b.dataset.fmethod; render(); });
   document.querySelectorAll('[data-fcat]').forEach(b => b.onclick = () => { S.filter.cat = ''; S.filter.uni = ''; S.filter.client = ''; S.filter.acct = ''; render(); });

@@ -674,14 +674,10 @@ function viewHome() {
     const c = catOf({ category: name, book: '개인' });
     return `<button class="cat-row" data-cat="${esc(name)}"><span class="ico" style="background:${c.color}1F">${c.icon}</span><span class="row-main"><span class="row-title">${esc(name)}</span><span class="row-sub">${Math.round(v / total * 100)}%</span></span><span class="row-amt num">${wonU(v)}</span></button>`;
   }).join('') + (catArr.length > 4 ? `<button class="more-btn" data-act="catall">${showAll ? '접기' : `${catArr.length - 4}개 더 보기`}</button>` : '') : '';
-  const recent = [...all].sort(sortTx).slice(0, 5);
-  return `${hero}${upHtml}
-    ${catHtml ? `<section class="card"><h2>어디에 썼나요</h2>${catHtml}</section>` : ''}
+  return `${hero}
+    ${catHtml ? `<section class="card"><h2>어디에 썼나요</h2>${catHtml}</section>` : (all.length ? '' : `<section class="card"><div class="empty-state"><div class="big">📄</div>이 달 내역이 없어요</div></section>`)}
     ${viewIncome('전체')}
-    ${viewStats()}
-    <section class="card"><h2>최근 내역${recent.length ? '<button class="more" data-tab="list">전체 ›</button>' : ''}</h2>
-      ${recent.length ? recent.map(rowHtml).join('') : `<div class="empty-state"><div class="big">📄</div>이 달에는 내역이 없어요.<br>오른쪽 위 '엑셀 올리기'로 은행·카드 내역을 넣어 주세요.</div>`}
-    </section>`;
+    ${viewStats()}`;
 }
 function isNowMonth() { return S.ym === today().slice(0, 7); }
 function paceBar(spent, budget, passed, days, word) {

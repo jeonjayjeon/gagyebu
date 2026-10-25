@@ -565,25 +565,6 @@ function briefing(ym) {
   const out = [];
   const pct = (v, t) => Math.round(v / t * 100);
   const chip = name => { const t = cur.find(x => nameOf(x) === name); const r = t && regOf(t); return `<span class="bc-chip">${r && r.domain ? logo(r, 'bc-fav') : ''}${esc(name)}</span>`; };
-  // 1) 가장 많이 쓴 곳
-  const top = Object.entries(cc).sort((a, b) => b[1] - a[1]);
-  if (top.length) {
-    const [cat, v] = top[0], c = catOf({ category: cat, book: '개인' });
-    const mm = Object.entries(by(cur.filter(t => t.category === cat), nameOf)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(x => x[0]);
-    out.push({ attr: `data-cat="${esc(cat)}"`, label: '가장 많이', icon: c.icon, title: cat, big: shortWon(v), unit: `${pct(v, exp)}%`,
-      foot: `<div class="bc-bar"><i style="width:${pct(v, exp)}%;background:${c.color}"></i></div>${mm.length ? `<div class="bc-chips">${mm.map(chip).join('')}</div>` : ''}` });
-  }
-  // 2) 지난달보다 늘거나 줄어든 곳
-  const ups = Object.keys(cc).map(k => [k, cc[k] - (cp[k] || 0)]).filter(x => x[1] > 30000).sort((a, b) => b[1] - a[1]);
-  if (ups.length && prev.length) {
-    const [cat, d] = ups[0], c = catOf({ category: cat, book: '개인' });
-    const mm = Object.entries(by(cur.filter(t => t.category === cat), nameOf)).sort((a, b) => b[1] - a[1])[0];
-    out.push({ attr: `data-cat="${esc(cat)}"`, label: '지난달보다', icon: c.icon, title: cat, big: `▲${shortWon(d)}`, cls: 'up', unit: '',
-      foot: mm ? `<div class="bc-chips">${chip(mm[0])}<span class="bc-dim">${shortWon(mm[1])}</span></div>` : '' });
-  } else if (prev.length) {
-    const downs = Object.keys(cp).map(k => [k, (cp[k] || 0) - (cc[k] || 0)]).filter(x => x[1] > 30000).sort((a, b) => b[1] - a[1]);
-    if (downs.length) { const c = catOf({ category: downs[0][0], book: '개인' }); out.push({ attr: `data-cat="${esc(downs[0][0])}"`, label: '지난달보다', icon: c.icon, title: downs[0][0], big: `▼${shortWon(downs[0][1])}`, cls: 'down', unit: '', foot: '' }); }
-  }
   // 3) 정기결제 비중
   const act = regulars().plans.filter(p => p.active);
   const regIds = new Set(); act.forEach(p => p.items.forEach(t => regIds.add(t.id)));

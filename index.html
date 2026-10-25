@@ -327,11 +327,19 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 .blab{font-size:12px;color:var(--sub)}.bcol.now .blab{color:var(--ink);font-weight:700}
 .avgline{position:absolute;left:0;right:0;border-top:1.5px dashed var(--faint);pointer-events:none}
 .avgline span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--sub);background:var(--surface);padding:0 4px}
-.brief{margin:16px 0 4px;background:var(--surface2);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
-.brief-row{display:flex;gap:10px;align-items:flex-start}
-.brief-row span{flex:none;font-size:16px;line-height:1.45}
-.brief-row p{margin:0;font-size:14px;line-height:1.5;color:var(--ink2);word-break:keep-all}
-.brief-row b{color:var(--ink);font-weight:700}.brief-row b.up{color:var(--red)}.brief-row b.down{color:var(--blue)}
+.bcards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 4px}
+.bcard{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface2);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.bcard:active{transform:scale(.98)}
+.bc-top{display:flex;align-items:center;gap:6px}.bc-ico{font-size:15px}.bc-label{font-size:12px;color:var(--ink3,#8B95A1);font-weight:600}
+.bc-title{font-size:13px;color:var(--ink2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bc-big{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.3px}.bc-big small{font-size:12px;font-weight:600;color:var(--ink3,#8B95A1);margin-left:4px}
+.bc-big.up{color:var(--red)}.bc-big.down{color:var(--blue)}.bc-big.ok{color:var(--ink)}
+.bc-bar{position:relative;height:5px;border-radius:3px;background:rgba(0,0,0,.07);margin-top:5px;overflow:visible}.bc-bar i{display:block;height:100%;border-radius:3px}
+.bc-bar.proj s{position:absolute;top:-3px;width:2px;height:11px;background:var(--ink);border-radius:1px;transform:translateX(-1px)}
+.bc-chips,.bc-logos{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;align-items:center}
+.bc-chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 7px;border-radius:999px;background:var(--surface,#fff);color:var(--ink2);max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.bc-fav{width:14px;height:14px;border-radius:4px;flex:none}.bc-logos .bc-fav{width:20px;height:20px;border-radius:6px;background:#fff}
+.bc-dim{font-size:11px;color:var(--ink3,#8B95A1);margin-top:4px}
 </style>
 </head>
 <body>
@@ -341,6 +349,6 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>실행 취소</button></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>

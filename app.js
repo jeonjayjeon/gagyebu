@@ -561,42 +561,57 @@ function briefing(ym) {
   const nameOf = t => { if (/우아한형제들|배달의민족/.test(t.title) && !/배민클럽/.test(t.title)) return '배달의민족'; if (/^쿠팡/.test(t.title)) return '쿠팡'; const r = regOf(t); return r ? r.name : t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').replace(/\s+[A-Z ]{3,}$/, '').trim(); };
   const cc = by(cur, t => t.category), cp = by(prev, t => t.category);
   const out = [];
+  const pct = (v, t) => Math.round(v / t * 100);
+  const chip = name => { const t = cur.find(x => nameOf(x) === name); const r = t && regOf(t); return `<span class="bc-chip">${r && r.domain ? logo(r, 'bc-fav') : ''}${esc(name)}</span>`; };
   // 1) 가장 많이 쓴 곳
   const top = Object.entries(cc).sort((a, b) => b[1] - a[1]);
   if (top.length) {
-    const [cat, v] = top[0];
+    const [cat, v] = top[0], c = catOf({ category: cat, book: '개인' });
     const mm = Object.entries(by(cur.filter(t => t.category === cat), nameOf)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(x => x[0]);
-    out.push({ icon: catOf({ category: cat, book: '개인' }).icon, html: `<b>${esc(cat)}</b>에 가장 많이 썼어요. ${shortWon(v)}원(${Math.round(v / exp * 100)}%)${mm.length ? `, 주로 ${mm.map(esc).join('·')}` : ''}` });
+    out.push({ attr: `data-cat="${esc(cat)}"`, label: '가장 많이', icon: c.icon, title: cat, big: shortWon(v), unit: `${pct(v, exp)}%`,
+      foot: `<div class="bc-bar"><i style="width:${pct(v, exp)}%;background:${c.color}"></i></div>${mm.length ? `<div class="bc-chips">${mm.map(chip).join('')}</div>` : ''}` });
   }
-  // 2) 지난달보다 크게 늘어난 곳
+  // 2) 지난달보다 늘거나 줄어든 곳
   const ups = Object.keys(cc).map(k => [k, cc[k] - (cp[k] || 0)]).filter(x => x[1] > 30000).sort((a, b) => b[1] - a[1]);
   if (ups.length && prev.length) {
-    const [cat, d] = ups[0];
+    const [cat, d] = ups[0], c = catOf({ category: cat, book: '개인' });
     const mm = Object.entries(by(cur.filter(t => t.category === cat), nameOf)).sort((a, b) => b[1] - a[1])[0];
-    out.push({ icon: '📈', html: `<b>${esc(cat)}</b>${josa(cat, '이', '가').slice(-1)} 지난달 이맘때보다 <b class="up">${shortWon(d)}원</b> 늘었어요${mm ? ` (${esc(mm[0])} ${shortWon(mm[1])}원)` : ''}` });
+    out.push({ attr: `data-cat="${esc(cat)}"`, label: '지난달보다', icon: c.icon, title: cat, big: `▲${shortWon(d)}`, cls: 'up', unit: '',
+      foot: mm ? `<div class="bc-chips">${chip(mm[0])}<span class="bc-dim">${shortWon(mm[1])}</span></div>` : '' });
   } else if (prev.length) {
     const downs = Object.keys(cp).map(k => [k, (cp[k] || 0) - (cc[k] || 0)]).filter(x => x[1] > 30000).sort((a, b) => b[1] - a[1]);
-    if (downs.length) out.push({ icon: '📉', html: `<b>${esc(downs[0][0])}</b>${josa(downs[0][0], '은', '는').slice(-1)} 지난달 이맘때보다 <b class="down">${shortWon(downs[0][1])}원</b> 줄었어요` });
+    if (downs.length) { const c = catOf({ category: downs[0][0], book: '개인' }); out.push({ attr: `data-cat="${esc(downs[0][0])}"`, label: '지난달보다', icon: c.icon, title: downs[0][0], big: `▼${shortWon(downs[0][1])}`, cls: 'down', unit: '', foot: '' }); }
   }
   // 3) 정기결제 비중
   const act = regulars().plans.filter(p => p.active);
   const regIds = new Set(); act.forEach(p => p.items.forEach(t => regIds.add(t.id)));
   const regSum = cur.filter(t => regIds.has(t.id)).reduce((a, t) => a + Number(t.amount), 0);
-  if (regSum) out.push({ icon: '🔁', html: `정기결제로 <b>${shortWon(regSum)}원</b>이 나갔어요. 이번 달 지출의 ${Math.round(regSum / exp * 100)}%예요` });
-  // 4) 자주 쓴 곳
-  const freq = {}; cur.forEach(t => { const k = nameOf(t); freq[k] = (freq[k] || 0) + 1; });
-  const f = Object.entries(freq).filter(([k]) => !regIds.size || true).sort((a, b) => b[1] - a[1])[0];
-  if (f && f[1] >= 4) out.push({ icon: '🧾', html: `<b>${esc(f[0])}</b>에서 ${f[1]}번 결제했어요`, low: true });
-  // 5) 월말 예상
+  if (regSum) {
+    const logos = act.filter(p => p.domain && p.items.some(t => t.date.slice(0, 7) === ym)).sort((a, b) => b.amount - a.amount).slice(0, 4);
+    out.push({ attr: 'data-tab="subs"', label: '정기결제', icon: '🔁', title: '고정 지출', big: shortWon(regSum), unit: `${pct(regSum, exp)}%`,
+      foot: `<div class="bc-bar"><i style="width:${pct(regSum, exp)}%;background:var(--blue)"></i></div>${logos.length ? `<div class="bc-logos">${logos.map(p => logo(p, 'bc-fav')).join('')}</div>` : ''}` });
+  }
+  // 4) 월말 예상
   if (isNow && dayN >= 5) {
     const [y, m] = ym.split('-').map(Number), days = new Date(y, m, 0).getDate();
     const s0 = settings(), budget = (Number(s0['개인 월예산']) || 0) + (Number(s0['사업 월예산']) || 0);
     const varSum = exp - regSum, regLeft = act.filter(p => !paidIn(p, ym) && (!p.yearly || p.month === ym.slice(5)) && Number(dueDate(p, ym).slice(8)) > dayN).reduce((a, p) => a + p.amount, 0);
     const proj = Math.round(regSum + regLeft + varSum / dayN * days);
-    if (budget) out.push({ icon: proj > budget ? '⚠️' : '✅', html: `이 속도면 월말에 약 <b>${shortWon(proj)}원</b>을 쓰게 돼요. ${proj > budget ? `예산보다 <b class="up">${shortWon(proj - budget)}원</b> 많아요` : `예산 안에 들어와요`}` });
+    if (budget) {
+      const over = proj > budget, w = Math.min(100, pct(proj, Math.max(proj, budget))), bw = Math.min(100, pct(budget, Math.max(proj, budget)));
+      out.push({ attr: '', label: '월말 예상', icon: over ? '⚠️' : '✅', title: over ? '예산 초과' : '예산 안', big: shortWon(proj), cls: over ? 'up' : 'ok', unit: `/ ${shortWon(budget)}`,
+        foot: `<div class="bc-bar proj"><i style="width:${w}%;background:${over ? 'var(--red)' : 'var(--green,#1FB46A)'}"></i><s style="left:${bw}%"></s></div><div class="bc-dim">${over ? `${shortWon(proj - budget)} 넘어요` : `${shortWon(budget - proj)} 여유`}</div>` });
+    }
   }
-  const main = out.filter(x => !x.low), low = out.filter(x => x.low);
-  return main.concat(low).slice(0, 4);
+  return out.slice(0, 4);
+}
+function briefHtml(ym) {
+  const b = briefing(ym); if (!b.length) return '';
+  return `<div class="bcards">${b.map(x => `<button class="bcard" ${x.attr}>
+    <div class="bc-top"><span class="bc-ico">${x.icon}</span><span class="bc-label">${esc(x.label)}</span></div>
+    <div class="bc-title">${esc(x.title)}</div>
+    <div class="bc-big num ${x.cls || ''}">${x.big}<small>${esc(x.unit)}</small></div>
+    ${x.foot}</button>`).join('')}</div>`;
 }
 function viewHome() {
   const all = inMonth(txs(), S.ym), s = settings();
@@ -614,7 +629,7 @@ function viewHome() {
       <div class="hero-label">${isNow ? '이번 달' : monthTitle()} 쓴 돈</div>
       <div class="hero-amt num">${won(exp)}<small>원</small></div>
       ${cmp ? `<div class="hero-note">${cmp}</div>` : ''}
-      ${(() => { const b = briefing(S.ym); return b.length ? `<div class="brief">${b.map(x => `<div class="brief-row"><span>${x.icon}</span><p>${x.html}</p></div>`).join('')}</div>` : ''; })()}
+      ${briefHtml(S.ym)}
       ${budget ? `<div class="budget-line"><div class="pace"><div class="pace-fill ${exp > budget ? 'over' : ''}" style="width:${Math.min(100, pct)}%"></div></div>
         <div class="pace-legend"><span>예산 ${shortWon(budget)}원의 ${pct}%</span><b class="${left < 0 ? 'over-t' : ''}">${left < 0 ? shortWon(-left) + '원 초과' : shortWon(left) + '원 남음'}</b></div></div>` : ''}
       <div class="kv"><span>들어온 돈</span><b class="num plus">+${wonU(inc)}</b></div>

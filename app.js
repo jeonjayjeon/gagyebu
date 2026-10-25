@@ -560,7 +560,8 @@ function briefing(ym) {
   if (!exp) return [];
   const by = (list, f) => { const m = {}; list.forEach(t => { const k = f(t); m[k] = (m[k] || 0) + Number(t.amount); }); return m; };
   const josa = (w, a, b) => { const c = w.charCodeAt(w.length - 1); return w + ((c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28) ? a : b); };
-  const nameOf = t => { if (/우아한형제들|배달의민족/.test(t.title) && !/배민클럽/.test(t.title)) return '배달의민족'; if (/^쿠팡/.test(t.title)) return '쿠팡'; const r = regOf(t); return r ? r.name : t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').replace(/\s+[A-Z ]{3,}$/, '').trim(); };
+  const nameOf = merchantName;
+  const _unused = t => { if (/우아한형제들|배달의민족/.test(t.title) && !/배민클럽/.test(t.title)) return '배달의민족'; if (/^쿠팡/.test(t.title)) return '쿠팡'; const r = regOf(t); return r ? r.name : t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').replace(/\s+[A-Z ]{3,}$/, '').trim(); };
   const cc = by(cur, t => t.category), cp = by(prev, t => t.category);
   const out = [];
   const pct = (v, t) => Math.round(v / t * 100);
@@ -614,6 +615,34 @@ function spanAvg(span) {
   return Math.round(tot / 28 * elapsed);
 }
 function spanSeg() { const sp = S.ui.span || 'month'; return `<div class="span-seg">${[['day', '오늘'], ['week', '이번 주'], ['month', '이번 달']].map(([k, l]) => `<button data-span="${k}" aria-pressed="${sp === k}">${l}</button>`).join('')}</div>`; }
+function merchantName(t) { if (/우아한형제들|배달의민족/.test(t.title) && !/배민클럽/.test(t.title)) return '배달의민족'; if (/^쿠팡/.test(t.title)) return '쿠팡'; const r = regOf(t); return r ? r.name : t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').replace(/\s+[A-Z ]{3,}$/, '').trim(); }
+function regIdSet() { const set = new Set(); regulars().plans.forEach(p => p.items.forEach(t => set.add(t.id))); return set; }
+function catMonth(ym) { const m = {}; inMonth(txs(), ym).forEach(t => { if (t.type === '지출') m[t.category] = (m[t.category] || 0) + Number(t.amount); }); return m; }
+function spark(vals, color) {
+  const w = 40, h = 18, mx = Math.max(1, ...vals), n = vals.length;
+  const pts = vals.map((v, i) => `${(i / (n - 1) * w).toFixed(1)},${(h - 2 - v / mx * (h - 4)).toFixed(1)}`).join(' ');
+  const [lx, ly] = pts.split(' ').pop().split(',');
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${lx}" cy="${ly}" r="2.2" fill="${color}"/></svg>`;
+}
+/* 자주·많이 쓴 곳 (정기결제 제외) */
+function viewPlaces() {
+  const reg = regIdSet(), cur = inMonth(txs(), S.ym).filter(t => t.type === '지출' && !reg.has(t.id));
+  const m = {}; cur.forEach(t => { const k = merchantName(t); (m[k] = m[k] || { n: 0, v: 0, t }).n++; m[k].v += Number(t.amount); });
+  const arr = Object.entries(m).sort((a, b) => b[1].v - a[1].v).slice(0, 5); if (!arr.length) return '';
+  const mx = arr[0][1].v;
+  return `<section class="card"><h2>많이 쓴 곳 <em class="h2-sub">정기결제 제외</em></h2>${arr.map(([k, o]) => { const c = catOf(o.t), r = regOf(o.t); return `<div class="pl-row"><span class="ico" style="background:${c.color}1F">${r && r.domain ? logo(r, 'fav') : c.icon}</span><div class="pl-main"><div class="pl-top"><b>${esc(k)}</b><span class="num">${wonU(o.v)}</span></div><div class="pl-bar"><i style="width:${o.v / mx * 100}%;background:${c.color}"></i></div></div><span class="pl-n num">${o.n}회</span></div>`; }).join('')}</section>`;
+}
+/* 요일 패턴: 최근 12주 변동 지출의 요일별 평균 */
+function viewWeekday() {
+  const reg = regIdSet(), end = new Date(today() + 'T00:00:00'), st = new Date(end); st.setDate(st.getDate() - 83);
+  const from = ymd(st), to = today();
+  const sums = [0, 0, 0, 0, 0, 0, 0];
+  txs().forEach(t => { if (t.type === '지출' && !reg.has(t.id) && t.date >= from && t.date <= to) sums[(new Date(t.date + 'T00:00:00').getDay() + 6) % 7] += Number(t.amount); });
+  if (!sums.some(Boolean)) return '';
+  const avg = sums.map(v => v / 12), mx = Math.max(...avg), top = avg.indexOf(mx);
+  const L = ['월', '화', '수', '목', '금', '토', '일'];
+  return `<section class="card"><h2>요일별 평균 <em class="h2-sub">최근 12주 · 정기결제 제외</em></h2><div class="bars2 wk">${avg.map((v, i) => `<div class="bcol ${i === top ? 'now' : ''}"><span class="bwrap"><span class="bval num">${v >= 1000 ? shortWon(v) : ''}</span><i style="height:${Math.max(2, Math.round(v / mx * 80))}px"></i></span><span class="blab">${L[i]}</span></div>`).join('')}</div></section>`;
+}
 function viewHome() {
   const all = inMonth(txs(), S.ym), s = settings();
   const isNow = isNowMonth();
@@ -649,35 +678,26 @@ function viewHome() {
       <div class="kv muted-row"><span>계좌간 거래</span><b class="num">${wonU(tr)}</b></div>
     </section>`;
   }
-  // 다가오는 정기결제
-  let upHtml = '';
-  if (isNow) {
-    const act = regulars().plans.filter(p => p.active);
-    const ups = [];
-    [today().slice(0, 7), addMonth(today().slice(0, 7), 1)].forEach(mm => act.forEach(p => {
-      if (p.installment && mm > p.installment.endYm) return; if (p.yearly && mm.slice(5) !== p.month) return;
-      const due = dueDate(p, mm), d = Math.round((new Date(due) - new Date(today())) / 864e5);
-      if (d >= 0 && d <= 14 && !(mm === today().slice(0, 7) && paidIn(p, mm))) ups.push({ p, due, d });
-    }));
-    ups.sort((a, b) => a.due.localeCompare(b.due));
-    const upSum = ups.reduce((a, u) => a + u.p.amount, 0);
-    if (ups.length) upHtml = `<section class="card tap" data-tab="subs"><h2>2주 안에 나갈 정기결제<span class="more">${shortWon(upSum)}원 ›</span></h2>
-      <div class="up-chips">${ups.slice(0, 6).map(u => `<div class="up-chip"><span class="up-logo">${logo(u.p)}</span><b>${esc(u.p.label)}</b><span class="num">${u.d === 0 ? '오늘' : u.d === 1 ? '내일' : Number(u.due.slice(5, 7)) + '/' + Number(u.due.slice(8))}</span><em class="num">${shortWon(u.p.amount)}원</em></div>`).join('')}</div></section>`;
-  }
   // 카테고리
   const catSums = {};
   all.filter(t => t.type === '지출').forEach(t => { catSums[t.category] = (catSums[t.category] || 0) + Number(t.amount); });
   const catArr = Object.entries(catSums).sort((a, b) => b[1] - a[1]);
   const total = catArr.reduce((a, b) => a + b[1], 0);
   const showAll = S.ui.catAll;
+  const hist6 = [5, 4, 3, 2, 1, 0].map(i => catMonth(addMonth(S.ym, -i)));
+  const frac = isNow ? Number(today().slice(8)) / new Date(Number(S.ym.slice(0, 4)), Number(S.ym.slice(5)), 0).getDate() : 1; // 진행 중인 달은 경과 비율만큼 비교
   const catHtml = catArr.length ? `<div class="stack" style="margin:4px 0 14px">${catArr.slice(0, 6).map(([n, v]) => `<i style="width:${v / total * 100}%;background:${catOf({ category: n, book: '개인' }).color}"></i>`).join('')}</div>` + (showAll ? catArr : catArr.slice(0, 4)).map(([name, v]) => {
     const c = catOf({ category: name, book: '개인' });
-    return `<button class="cat-row" data-cat="${esc(name)}"><span class="ico" style="background:${c.color}1F">${c.icon}</span><span class="row-main"><span class="row-title">${esc(name)}</span><span class="row-sub">${Math.round(v / total * 100)}%</span></span><span class="row-amt num">${wonU(v)}</span></button>`;
+    const hist = hist6.map(m => m[name] || 0), base = hist.slice(2, 5).reduce((a, b) => a + b, 0) / 3 * frac;
+    const dp = base ? Math.round((v - base) / base * 100) : null;
+    return `<button class="cat-row" data-cat="${esc(name)}"><span class="ico" style="background:${c.color}1F">${c.icon}</span><span class="row-main"><span class="row-title">${esc(name)}</span><span class="row-sub">${Math.round(v / total * 100)}%${dp !== null && Math.abs(dp) >= 10 ? ` <b class="${dp > 0 ? 'up' : 'down'}">${dp > 0 ? '▲' : '▼'}${Math.abs(dp)}%</b>` : ''}</span></span>${spark(hist, c.color)}<span class="row-amt num">${wonU(v)}</span></button>`;
   }).join('') + (catArr.length > 4 ? `<button class="more-btn" data-act="catall">${showAll ? '접기' : `${catArr.length - 4}개 더 보기`}</button>` : '') : '';
   return `${hero}
     ${catHtml ? `<section class="card"><h2>어디에 썼나요</h2>${catHtml}</section>` : (all.length ? '' : `<section class="card"><div class="empty-state"><div class="big">📄</div>이 달 내역이 없어요</div></section>`)}
-    ${viewIncome('전체')}
-    ${viewStats()}`;
+    ${viewPlaces()}
+    ${viewStats()}
+    ${viewWeekday()}
+    ${viewIncome('전체')}`;
 }
 function isNowMonth() { return S.ym === today().slice(0, 7); }
 function paceBar(spent, budget, passed, days, word) {
@@ -736,13 +756,13 @@ function viewList() {
 /* 분석 */
 function viewStats() {
   const months = []; for (let i = 5; i >= 0; i--) months.push(addMonth(S.ym, -i));
-  const series = months.map(ym => { const l = inMonth(txs(), ym); return { ym, inc: sum(l, '수입'), exp: sum(l, '지출') }; });
+  const reg = regIdSet();
+  const series = months.map(ym => { const l = inMonth(txs(), ym), e = l.filter(t => t.type === '지출'); const fix = e.filter(t => reg.has(t.id)).reduce((a, t) => a + Number(t.amount), 0); return { ym, inc: sum(l, '수입'), exp: sum(l, '지출'), fix }; });
   const max = Math.max(1, ...series.map(s => s.exp));
   const avg = series.slice(0, 5).filter(s => s.exp).reduce((a, s, _, arr) => a + s.exp / arr.length, 0);
-  const cur = series[5];
-  const bars = `<div class="bars2">${series.map(s => `<div class="bcol ${s.ym === S.ym ? 'now' : ''}"><span class="bwrap"><span class="bval num">${s.exp ? shortWon(s.exp) : ''}</span><i style="height:${Math.max(2, Math.round(s.exp / max * 110))}px"></i></span><span class="blab">${Number(s.ym.slice(5))}월</span></div>`).join('')}${avg ? `<div class="avgline" style="bottom:${24 + avg / max * 110}px"><span>평균 ${shortWon(avg)}</span></div>` : ''}</div>`;
-  const msg = avg ? `${monthTitle()} 지출은 평균보다 <b class="${cur.exp > avg ? 'up' : 'down'}">${shortWon(Math.abs(cur.exp - avg))}원 ${cur.exp > avg ? '많아요' : '적어요'}</b>` : '';
-  return `<section class="card"><h2>월별 지출</h2>${bars}</section>`;
+  const H = 110;
+  const bars = `<div class="bars2">${series.map(s => `<div class="bcol ${s.ym === S.ym ? 'now' : ''}"><span class="bwrap"><span class="bval num">${s.exp ? shortWon(s.exp) : ''}</span><span class="bstack" style="height:${Math.max(2, Math.round(s.exp / max * H))}px"><i class="var" style="flex:${s.exp - s.fix}"></i><i class="fix" style="flex:${s.fix}"></i></span></span><span class="blab">${Number(s.ym.slice(5))}월</span><span class="bnet num ${s.inc - s.exp >= 0 ? 'plus' : 'minus'}">${s.inc || s.exp ? (s.inc - s.exp >= 0 ? '+' : '−') + shortWon(Math.abs(s.inc - s.exp)) : ''}</span></div>`).join('')}${avg ? `<div class="avgline" style="bottom:${44 + avg / max * H}px"><span>평균 ${shortWon(avg)}</span></div>` : ''}</div>`;
+  return `<section class="card"><h2>월별 지출</h2>${bars}<div class="lgd"><span><i class="fix"></i>정기결제</span><span><i class="var"></i>변동</span><span class="lgd-net">아래 숫자 = 수입 − 지출</span></div></section>`;
 }
 
 /* 수입 분석: 대학별 강의 수입 + 프로젝트(거래처)별 수입 */

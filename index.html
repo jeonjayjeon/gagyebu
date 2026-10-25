@@ -327,6 +327,20 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 .blab{font-size:12px;color:var(--sub)}.bcol.now .blab{color:var(--ink);font-weight:700}
 .avgline{position:absolute;left:0;right:0;border-top:1.5px dashed var(--faint);pointer-events:none}
 .avgline span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--sub);background:var(--surface);padding:0 4px}
+.spark{flex:none;margin-right:2px;opacity:.9}
+.row-sub b.up{color:var(--red);font-weight:700}.row-sub b.down{color:var(--blue);font-weight:700}
+.h2-sub{font-style:normal;font-size:12px;font-weight:500;color:var(--sub);margin-left:6px}
+.pl-row{display:flex;align-items:center;gap:12px;padding:8px 0}
+.pl-row .ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:18px;flex:none}.pl-row .fav{width:22px;height:22px;border-radius:6px}
+.pl-main{flex:1;min-width:0}.pl-top{display:flex;justify-content:space-between;gap:8px;font-size:14px}.pl-top b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pl-top span{font-weight:700;white-space:nowrap}
+.pl-bar{height:5px;border-radius:3px;background:var(--surface2);margin-top:6px}.pl-bar i{display:block;height:100%;border-radius:3px;opacity:.85}
+.pl-n{flex:none;width:34px;text-align:right;font-size:12px;color:var(--sub)}
+.bstack{display:flex;flex-direction:column;width:70%;max-width:34px;border-radius:8px 8px 4px 4px;overflow:hidden}
+.bstack i{display:block;width:100%;max-width:none;border-radius:0}.bstack i.fix{background:#B8C4FF}.bstack i.var{background:var(--faint)}
+.bcol.now .bstack i.fix{background:#1B64DA}.bcol.now .bstack i.var{background:var(--blue)}
+.bnet{font-size:10.5px;font-weight:700;height:16px}.bnet.plus{color:var(--blue)}.bnet.minus{color:var(--red)}
+.lgd{display:flex;gap:12px;align-items:center;margin-top:10px;font-size:11.5px;color:var(--sub)}.lgd i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}.lgd i.fix{background:#1B64DA}.lgd i.var{background:var(--blue)}.lgd-net{margin-left:auto}
+.bars2.wk .bwrap{height:104px}
 .span-seg{display:inline-flex;background:var(--surface2);border-radius:12px;padding:3px;gap:2px;margin-bottom:12px}
 .span-seg button{all:unset;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink3,#8B95A1);padding:6px 12px;border-radius:9px}
 .span-seg button[aria-pressed="true"]{background:var(--surface,#fff);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -360,6 +374,6 @@ main>.span-seg{margin:4px 0 10px}
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>실행 취소</button></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="app.js?v=18"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

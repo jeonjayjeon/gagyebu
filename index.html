@@ -251,6 +251,36 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 .sub-name b{display:block;font-weight:600;font-size:14px;line-height:1.3}
 .pill{font-style:normal;vertical-align:1px;display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:7px;background:var(--surface2);color:var(--ink2)}
 .pill.biz{background:#EFE7FF;color:#7C3AED}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:18px 0 10px;gap:2px;background:var(--line)}
+.stack i{display:block;height:100%}
+.stack-legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--ink2)}
+.stack-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-head>div{text-align:center}.cal-head b{display:block;font-size:17px}.cal-head span{font-size:13px;color:var(--sub)}
+.cal-head button{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--sub)}
+.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal-week span{font-size:12px;color:var(--sub);padding-bottom:4px}
+.cal-cell{height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;gap:2px;font-size:14px;color:var(--ink2);background:none}
+.cal-cell.empty{visibility:hidden}
+.cal-cell[disabled]{cursor:default;opacity:.55}
+.cal-cell.has{background:var(--blue-soft);color:var(--ink);font-weight:600}
+.cal-cell.has .cal-amt{font-size:10.5px;color:var(--blue);font-weight:700;letter-spacing:-.03em}
+.cal-cell.past.has{background:var(--surface2)}.cal-cell.past.has .cal-amt{color:var(--sub)}
+.cal-cell.today .cal-d{background:var(--ink);color:var(--surface);border-radius:8px;padding:0 6px}
+.cal-cell.sel{outline:2px solid var(--blue);outline-offset:-2px}
+.cal-day{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+.cal-day-h{font-size:14px;font-weight:700;margin-bottom:2px}
+.reg-item{display:flex;align-items:center;gap:14px;padding:9px 0}
+.up-row{display:flex;align-items:center;gap:10px}
+.up-row .reg-item{flex:1;min-width:0}
+.dday{flex:none;width:42px;text-align:center;font-size:12px;font-weight:700;color:var(--sub);background:var(--surface2);border-radius:8px;padding:4px 0}
+.dday.soon{color:var(--blue);background:var(--blue-soft)}
+.grp summary{display:flex;align-items:center;gap:14px;padding:10px 0;cursor:pointer;list-style:none}
+.grp summary::-webkit-details-marker{display:none}
+.grp summary .row-amt{font-weight:700}
+.grp[open] summary{border-bottom:1px solid var(--line);margin-bottom:4px}
+.grp+.grp{border-top:1px solid var(--line)}
+.grp .reg-item{padding-left:8px}
 </style>
 </head>
 <body>
@@ -260,6 +290,6 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>실행 취소</button></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

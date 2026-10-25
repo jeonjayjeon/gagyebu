@@ -327,6 +327,11 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 .blab{font-size:12px;color:var(--sub)}.bcol.now .blab{color:var(--ink);font-weight:700}
 .avgline{position:absolute;left:0;right:0;border-top:1.5px dashed var(--faint);pointer-events:none}
 .avgline span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--sub);background:var(--surface);padding:0 4px}
+.brief{margin:16px 0 4px;background:var(--surface2);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.brief-row{display:flex;gap:10px;align-items:flex-start}
+.brief-row span{flex:none;font-size:16px;line-height:1.45}
+.brief-row p{margin:0;font-size:14px;line-height:1.5;color:var(--ink2);word-break:keep-all}
+.brief-row b{color:var(--ink);font-weight:700}.brief-row b.up{color:var(--red)}.brief-row b.down{color:var(--blue)}
 </style>
 </head>
 <body>
@@ -336,6 +341,6 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>실행 취소</button></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

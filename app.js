@@ -548,6 +548,56 @@ function renderSync() {
 
 /* 홈 */
 function spentUntil(ym, day) { const [a] = monthRange(ym); return txs().filter(t => t.type === '지출' && t.date >= a && t.date.slice(0, 7) === ym && Number(t.date.slice(8)) <= day).reduce((s, t) => s + Number(t.amount), 0); }
+/* 이번 달 지출 브리핑: 규칙 기반 요약 */
+function briefing(ym) {
+  const isNow = ym === today().slice(0, 7);
+  const dayN = isNow ? Number(today().slice(8)) : 31;
+  const cur = inMonth(txs(), ym).filter(t => t.type === '지출');
+  const prev = inMonth(txs(), addMonth(ym, -1)).filter(t => t.type === '지출' && Number(t.date.slice(8)) <= dayN);
+  const exp = cur.reduce((a, t) => a + Number(t.amount), 0);
+  if (!exp) return [];
+  const by = (list, f) => { const m = {}; list.forEach(t => { const k = f(t); m[k] = (m[k] || 0) + Number(t.amount); }); return m; };
+  const josa = (w, a, b) => { const c = w.charCodeAt(w.length - 1); return w + ((c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28) ? a : b); };
+  const nameOf = t => { if (/우아한형제들|배달의민족/.test(t.title) && !/배민클럽/.test(t.title)) return '배달의민족'; if (/^쿠팡/.test(t.title)) return '쿠팡'; const r = regOf(t); return r ? r.name : t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').replace(/\s+[A-Z ]{3,}$/, '').trim(); };
+  const cc = by(cur, t => t.category), cp = by(prev, t => t.category);
+  const out = [];
+  // 1) 가장 많이 쓴 곳
+  const top = Object.entries(cc).sort((a, b) => b[1] - a[1]);
+  if (top.length) {
+    const [cat, v] = top[0];
+    const mm = Object.entries(by(cur.filter(t => t.category === cat), nameOf)).sort((a, b) => b[1] - a[1]).slice(0, 2).map(x => x[0]);
+    out.push({ icon: catOf({ category: cat, book: '개인' }).icon, html: `<b>${esc(cat)}</b>에 가장 많이 썼어요. ${shortWon(v)}원(${Math.round(v / exp * 100)}%)${mm.length ? `, 주로 ${mm.map(esc).join('·')}` : ''}` });
+  }
+  // 2) 지난달보다 크게 늘어난 곳
+  const ups = Object.keys(cc).map(k => [k, cc[k] - (cp[k] || 0)]).filter(x => x[1] > 30000).sort((a, b) => b[1] - a[1]);
+  if (ups.length && prev.length) {
+    const [cat, d] = ups[0];
+    const mm = Object.entries(by(cur.filter(t => t.category === cat), nameOf)).sort((a, b) => b[1] - a[1])[0];
+    out.push({ icon: '📈', html: `<b>${esc(cat)}</b>${josa(cat, '이', '가').slice(-1)} 지난달 이맘때보다 <b class="up">${shortWon(d)}원</b> 늘었어요${mm ? ` (${esc(mm[0])} ${shortWon(mm[1])}원)` : ''}` });
+  } else if (prev.length) {
+    const downs = Object.keys(cp).map(k => [k, (cp[k] || 0) - (cc[k] || 0)]).filter(x => x[1] > 30000).sort((a, b) => b[1] - a[1]);
+    if (downs.length) out.push({ icon: '📉', html: `<b>${esc(downs[0][0])}</b>${josa(downs[0][0], '은', '는').slice(-1)} 지난달 이맘때보다 <b class="down">${shortWon(downs[0][1])}원</b> 줄었어요` });
+  }
+  // 3) 정기결제 비중
+  const act = regulars().plans.filter(p => p.active);
+  const regIds = new Set(); act.forEach(p => p.items.forEach(t => regIds.add(t.id)));
+  const regSum = cur.filter(t => regIds.has(t.id)).reduce((a, t) => a + Number(t.amount), 0);
+  if (regSum) out.push({ icon: '🔁', html: `정기결제로 <b>${shortWon(regSum)}원</b>이 나갔어요. 이번 달 지출의 ${Math.round(regSum / exp * 100)}%예요` });
+  // 4) 자주 쓴 곳
+  const freq = {}; cur.forEach(t => { const k = nameOf(t); freq[k] = (freq[k] || 0) + 1; });
+  const f = Object.entries(freq).filter(([k]) => !regIds.size || true).sort((a, b) => b[1] - a[1])[0];
+  if (f && f[1] >= 4) out.push({ icon: '🧾', html: `<b>${esc(f[0])}</b>에서 ${f[1]}번 결제했어요`, low: true });
+  // 5) 월말 예상
+  if (isNow && dayN >= 5) {
+    const [y, m] = ym.split('-').map(Number), days = new Date(y, m, 0).getDate();
+    const s0 = settings(), budget = (Number(s0['개인 월예산']) || 0) + (Number(s0['사업 월예산']) || 0);
+    const varSum = exp - regSum, regLeft = act.filter(p => !paidIn(p, ym) && (!p.yearly || p.month === ym.slice(5)) && Number(dueDate(p, ym).slice(8)) > dayN).reduce((a, p) => a + p.amount, 0);
+    const proj = Math.round(regSum + regLeft + varSum / dayN * days);
+    if (budget) out.push({ icon: proj > budget ? '⚠️' : '✅', html: `이 속도면 월말에 약 <b>${shortWon(proj)}원</b>을 쓰게 돼요. ${proj > budget ? `예산보다 <b class="up">${shortWon(proj - budget)}원</b> 많아요` : `예산 안에 들어와요`}` });
+  }
+  const main = out.filter(x => !x.low), low = out.filter(x => x.low);
+  return main.concat(low).slice(0, 4);
+}
 function viewHome() {
   const all = inMonth(txs(), S.ym), s = settings();
   const isNow = isNowMonth();
@@ -564,6 +614,7 @@ function viewHome() {
       <div class="hero-label">${isNow ? '이번 달' : monthTitle()} 쓴 돈</div>
       <div class="hero-amt num">${won(exp)}<small>원</small></div>
       ${cmp ? `<div class="hero-note">${cmp}</div>` : ''}
+      ${(() => { const b = briefing(S.ym); return b.length ? `<div class="brief">${b.map(x => `<div class="brief-row"><span>${x.icon}</span><p>${x.html}</p></div>`).join('')}</div>` : ''; })()}
       ${budget ? `<div class="budget-line"><div class="pace"><div class="pace-fill ${exp > budget ? 'over' : ''}" style="width:${Math.min(100, pct)}%"></div></div>
         <div class="pace-legend"><span>예산 ${shortWon(budget)}원의 ${pct}%</span><b class="${left < 0 ? 'over-t' : ''}">${left < 0 ? shortWon(-left) + '원 초과' : shortWon(left) + '원 남음'}</b></div></div>` : ''}
       <div class="kv"><span>들어온 돈</span><b class="num plus">+${wonU(inc)}</b></div>

@@ -64,7 +64,7 @@ const S = {
   cfg: LS.get(K.cfg, null),
   data: LS.get(K.cache, null),
   queue: LS.get(K.queue, []),
-  ui: Object.assign({ book: '전체', tab: 'home' }, LS.get(K.ui, {})),
+  ui: Object.assign({ tab: 'home' }, LS.get(K.ui, {}), { book: '전체' }),
   ym: today().slice(0, 7),
   filter: { type: '전체', q: '', method: '' },
   syncing: false, syncErr: '', lastSync: null
@@ -521,7 +521,6 @@ function render() {
         ${showMonth ? `<div class="month"><button data-act="prev" aria-label="이전 달">${ICON.l}</button><span class="num">${monthTitle()}</span><button data-act="next" aria-label="다음 달" ${S.ym >= today().slice(0, 7) ? 'disabled style="opacity:.25"' : ''}>${ICON.r}</button></div>` : `<div class="month"><span style="text-align:left">${tab === 'subs' ? '정기 구독' : '설정'}</span></div>`}
         <button class="upload-btn" data-act="file" aria-label="엑셀 올리기">${ICON.up}<span>엑셀 올리기</span></button>
       </div>
-      ${showMonth ? `<div class="seg book-seg" role="group" aria-label="장부">${['전체', '개인', '사업'].map(b => `<button data-book="${b}" aria-pressed="${S.ui.book === b}">${b}</button>`).join('')}</div>` : ''}
       <div class="sync" id="sync"></div>
     </header>
     <main>${body}</main>
@@ -603,7 +602,7 @@ function rowHtml(t) {
     <span class="row-main"><span class="row-title">${esc(t.title || kind)}</span><span class="row-sub">${esc(sub)}</span></span>
     <span class="row-amt num tr">${wonU(t.amount)}</span></button>`;
   return `<button class="row" data-id="${esc(t.id)}"><span class="ico" style="background:${c.color}1F">${c.icon}</span>
-    <span class="row-main"><span class="row-title">${esc(t.title || t.category)}${S.ui.book === '전체' && t.book === '사업' ? '<span class="tag">사업</span>' : ''}</span><span class="row-sub">${esc(sub)}</span></span>
+    <span class="row-main"><span class="row-title">${esc(t.title || t.category)}</span><span class="row-sub">${esc(sub)}</span></span>
     <span class="row-amt num ${cls}">${sign}${wonU(t.amount)}</span></button>`;
 }
 
@@ -678,7 +677,7 @@ function viewStats() {
     <p class="help" style="margin:12px 0 0">종합소득세 신고 때 경비 증빙 정리에 그대로 쓸 수 있도록 시트의 '월별요약' 탭에도 같은 숫자가 계산돼요.</p></section>` : '';
   return `${viewIncome(book)}<section class="card"><h2>최근 6개월</h2>${bars}<p class="insight" style="margin-top:16px">${insight}</p></section>
     ${donut ? `<section class="card"><h2>${monthTitle()} 카테고리</h2>${donut}</section>` : ''}
-    ${pl}`;
+    `;
 }
 
 
@@ -798,7 +797,7 @@ function viewSubs() {
   const tot = act.reduce((a, p) => a + p.avg, 0), biz = act.filter(p => p.book === '사업').reduce((a, p) => a + p.avg, 0);
   const soon = act.map(p => ({ p, d: nextDate(p.day) })).sort((a, b) => a.d - b.d).slice(0, 3);
   const row = p => `<tr>
-      <td><div class="sub-name"><span>${p.icon}</span><div><b>${esc(p.label)} <i class="pill ${p.book === '사업' ? 'biz' : ''}">${p.book === '사업' ? '사업' : '개인'}</i></b><small>${esc(p.what)}</small></div></div></td>
+      <td><div class="sub-name"><span>${p.icon}</span><div><b>${esc(p.label)}</b><small>${esc(p.what)}</small></div></div></td>
       <td class="c num"><b>${p.day}일</b><small>${esc(p.method)}</small></td>
       <td class="r num"><b>${won(p.avg)}</b>${p.variable || Math.abs(p.amount - p.avg) > p.avg * 0.05 ? '<small>변동</small>' : ''}</td>
     </tr>`;
@@ -810,10 +809,6 @@ function viewSubs() {
   return `<section class="card">
       <div class="hero-label">매달 나가는 구독</div>
       <div class="hero-amt num">${won(tot)}<small>원</small></div>
-      <div class="trio" style="grid-template-columns:repeat(2,1fr)">
-        <div><span>사업(작업 도구)</span><b class="num" style="color:#8B5CF6">${shortWon(biz)}원</b></div>
-        <div><span>개인</span><b class="num">${shortWon(tot - biz)}원</b></div>
-      </div>
       ${soon.length ? `<p class="hint">다음 결제: ${soon.map(x => `${x.d.getMonth() + 1}/${x.d.getDate()} ${esc(x.p.label)} ${shortWon(x.p.avg)}원`).join(' · ')}</p>` : ''}
     </section>
     <section class="card"><h2>이용 중 ${act.length}개</h2>
@@ -829,8 +824,7 @@ function viewSettings() {
   const s = settings();
   const sheetUrl = 'https://docs.google.com/spreadsheets/d/1WNGffKjEIVfy0jBfaH6SDOOt6Zch1bKjNBXhOVM9GSw/edit';
   return `<section class="card"><h2>예산</h2>
-      <button class="set-row" data-budget="개인"><b style="font-weight:600">개인 월 예산</b><span class="num">${wonU(Number(s['개인 월예산']) || 0)}</span></button>
-      <button class="set-row" data-budget="사업"><b style="font-weight:600">사업 경비 월 예산</b><span class="num">${wonU(Number(s['사업 월예산']) || 0)}</span></button>
+      <button class="set-row" data-budget="개인"><b style="font-weight:600">월 예산</b><span class="num">${wonU((Number(s['개인 월예산']) || 0) + (Number(s['사업 월예산']) || 0))}</span></button>
       <p class="help" style="margin:8px 0 0">카테고리별 예산은 시트의 '카테고리' 탭 월예산 칸에서 바꿀 수 있어요.</p></section>
     <section class="card"><h2>엑셀로 업데이트</h2>
       <p class="help">뱅크샐러드 '데이터 내보내기' 파일, 삼성카드·토스뱅크 거래내역 엑셀을 그대로 올리면 돼요. 이미 있는 내역은 자동으로 건너뛰고, 내 계좌끼리 옮긴 돈은 계좌간 거래로 따로 표시해요.</p>
@@ -944,7 +938,7 @@ function drawSheet() {
   if (st.type === '이체' && !['계좌간 거래', '송금', '카드대금', '대출상환'].includes(st.category)) st.category = transferKind(st) || '계좌간 거래';
   const list = st.type === '이체'
     ? [['계좌간 거래', '↔️'], ['송금', '🔁'], ['카드대금', '💳'], ['대출상환', '🏦']].map(([name, icon]) => ({ name, icon }))
-    : cats().filter(c => c.type === st.type && c.book === st.book).sort((a, b) => usage(b.name, b.book) - usage(a.name, a.book));
+    : (() => { const seen = new Set(); return cats().filter(c => c.type === st.type && c.book !== '공통').filter(c => !seen.has(c.name) && seen.add(c.name)).sort((a, b) => usage(b.name, b.book) - usage(a.name, a.book)); })();
   const amt = Number(st.amountStr || 0);
   const typeLabel = { '지출': '지출', '수입': '수입', '이체': '계좌간 거래' };
   $('#sheetBody').innerHTML = `
@@ -957,7 +951,7 @@ function drawSheet() {
     <input type="hidden" id="sTitle" value="${esc(st.title)}">
     <div class="label">구분</div>
     <div class="seg" role="group" aria-label="구분">${['지출', '수입', '이체'].map(t => `<button data-stype="${t}" aria-pressed="${st.type === t}">${typeLabel[t]}</button>`).join('')}</div>
-    ${st.type !== '이체' ? `<div class="label">장부</div><div class="seg" role="group">${['개인', '사업'].map(b => `<button data-sbook="${b}" aria-pressed="${st.book === b}">${b === '사업' ? '사업(리얼타임웍스)' : '개인'}</button>`).join('')}</div>` : `<p class="help" style="margin:10px 0 0">수입·지출 합계에 넣지 않아요.</p>`}
+    ${st.type === '이체' ? `<p class="help" style="margin:10px 0 0">수입·지출 합계에 넣지 않아요.</p>` : ''}
     <div class="label">카테고리</div>
     <div class="cat-grid">${list.map(c => `<button class="cat-btn" data-scat="${esc(c.name)}" aria-pressed="${st.category === c.name}"><span class="e">${c.icon}</span>${esc(c.name)}</button>`).join('')}</div>
     <div class="label">메모</div>
@@ -992,7 +986,7 @@ function bindSheet() {
   body.querySelectorAll('[data-qa]').forEach(b => b.onclick = () => { st.amountStr = String(Number(st.amountStr || 0) + Number(b.dataset.qa)); haptic(); refreshAmt(); });
   body.querySelectorAll('[data-stype]').forEach(b => b.onclick = () => { syncInputs(); st.type = b.dataset.stype; if (st.type === '이체') st.book = '공통'; else if (st.book === '공통') st.book = S.ui.book === '사업' ? '사업' : '개인'; st.category = st.type === '이체' ? '계좌간 거래' : guessCategory(st.title, st.type, st.book); drawSheet(); });
   body.querySelectorAll('[data-sbook]').forEach(b => b.onclick = () => { syncInputs(); st.book = b.dataset.sbook; st.category = guessCategory(st.title, st.type, st.book); if (st.book === '사업' && st.method === '삼성카드' && methods().some(m => m.name === '사업자 계좌')) {} drawSheet(); });
-  body.querySelectorAll('[data-scat]').forEach(b => b.onclick = () => { st.category = b.dataset.scat; body.querySelectorAll('[data-scat]').forEach(x => x.setAttribute('aria-pressed', x === b)); haptic(); });
+  body.querySelectorAll('[data-scat]').forEach(b => b.onclick = () => { st.category = b.dataset.scat; const cc = cats().find(c => c.name === st.category && c.type === st.type); if (cc && cc.book !== '공통') st.book = cc.book; body.querySelectorAll('[data-scat]').forEach(x => x.setAttribute('aria-pressed', x === b)); haptic(); });
   body.querySelectorAll('[data-smethod]').forEach(b => b.onclick = () => { st.method = b.dataset.smethod; body.querySelectorAll('[data-smethod]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
   body.querySelectorAll('[data-sdate]').forEach(b => b.onclick = () => { syncInputs(); st.date = b.dataset.sdate; if (st.date !== today()) st.time = st.time && st.editing ? st.time : ''; drawSheet(); });
   const sd = $('#sDate'); if (sd) sd.onchange = () => { if (sd.value) { syncInputs(); st.date = sd.value; drawSheet(); } };
@@ -1029,8 +1023,8 @@ function saveSheet() {
 /* 예산 입력 시트 */
 function openBudget(book) {
   const key = book + ' 월예산';
-  sheetState = { mode: 'budget', amountStr: String(Number(settings()[key]) || ''), editing: true, type: '지출' };
-  $('#sheetBody').innerHTML = `<div class="sheet-head"><h3>${book === '사업' ? '사업 경비' : '개인'} 월 예산</h3><button class="x" data-s="close" aria-label="닫기">${ICON.x}</button></div>
+  sheetState = { mode: 'budget', amountStr: String((Number(settings()['개인 월예산']) || 0) + (Number(settings()['사업 월예산']) || 0) || ''), editing: true, type: '지출' };
+  $('#sheetBody').innerHTML = `<div class="sheet-head"><h3>월 예산</h3><button class="x" data-s="close" aria-label="닫기">${ICON.x}</button></div>
     <div class="amt-display num" id="amtDisp"></div><div class="amt-hint num" id="amtHint"></div>
     <div class="quick-amts">${[100000, 500000, 1000000].map(v => `<button data-qa="${v}">+${shortWon(v)}</button>`).join('')}<button data-qa="0">초기화</button></div>
     <div class="pad num">${['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'del'].map(k => `<button data-k="${k}">${k === 'del' ? '⌫' : k}</button>`).join('')}</div>`;
@@ -1043,8 +1037,8 @@ function openBudget(book) {
   $('#sheet').querySelector('[data-s="close"]').onclick = closeSheet;
   $('#sheet').querySelector('[data-s="save"]').onclick = () => {
     const amount = Number(st.amountStr || 0);
-    S.data.settings[key] = amount; persist(); closeSheet(); render();
-    mutate('setBudget', { book, amount }); toast('예산을 바꿨어요');
+    S.data.settings['개인 월예산'] = amount; S.data.settings['사업 월예산'] = 0; persist(); closeSheet(); render();
+    mutate('setBudget', { book: '개인', amount }); mutate('setBudget', { book: '사업', amount: 0 }); toast('예산을 바꿨어요');
   };
   showSheet();
 }

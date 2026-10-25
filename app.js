@@ -729,8 +729,19 @@ const REG_GROUPS = {
   '보험': { icon: '🛡️', color: '#5B6B8C' },
   '할부': { icon: '🧾', color: '#FF8A3D' },
   '대출': { icon: '🏦', color: '#F04452' },
+  '회비': { icon: '⛪', color: '#C08B5C' },
   '기타 정기': { icon: '🔁', color: '#8B95A1' }
 };
+// 카드 내역만으로는 구분이 안 되는 결제처(구글페이먼트·Apple)를 금액·영수증으로 세분
+const REG_SPECIAL = [
+  [t => /구글페이먼트/.test(t.title) && Number(t.amount) === 119000, { name: 'Google One AI Plus 2TB', group: '구독·멤버십', icon: '☁️', domain: 'one.google.com', yearly: true, note: '연간 결제 · 다음 갱신 2027년 7월 22일' }],
+  [t => /구글페이먼트/.test(t.title) && Number(t.amount) === 14900, { name: 'YouTube Premium', group: '구독·멤버십', icon: '▶️', domain: 'youtube.com', note: 'Google Play 결제 · 금액으로 추정' }],
+  [t => /구글페이먼트/.test(t.title) && [5500, 11000, 7500, 7250, 2400, 2323, 1394, 250, 77].includes(Number(t.amount)), { name: 'Google One (월간)', group: '구독·멤버십', icon: '☁️', domain: 'one.google.com', note: '7월에 연간 요금제로 전환' }],
+  [t => /구글페이먼트/.test(t.title) && Number(t.amount) === 4990, { name: 'Google Play 앱 구독', group: '구독·멤버십', icon: '🟢', domain: 'play.google.com', note: '앱 이름 확인 필요' }],
+  [t => /^apple$/i.test(t.title.trim()) && Number(t.amount) === 1100, { name: 'iCloud+ 50GB', group: '구독·멤버십', icon: '🍎', domain: 'icloud.com', note: 'Apple 결제 · 금액으로 추정' }],
+  [t => /^apple$/i.test(t.title.trim()) && Number(t.amount) === 2900, { name: 'Apple 구독', group: '구독·멤버십', icon: '🍎', domain: 'apple.com', note: '앱 이름 확인 필요' }],
+  [t => /유현선/.test(t.title), { name: '성당 전례단 회비', group: '회비', icon: '⛪' }]
+];
 // [패턴, 이름, 묶음, 아이콘, 금액변동(사용량)·결제일 들쭉날쭉한 요금이면 true]
 const REG_KNOWN = [
   [/higgsfield/i, 'Higgsfield', '작업 도구', '🎬', false, 'higgsfield.ai'],
@@ -770,6 +781,7 @@ function regOf(t) {
   const isLoan = t.type === '이체' && transferKind(t) === '대출상환';
   if (t.type !== '지출' && !isLoan) return null;
   if (isLoan && /전액|보증료/.test(t.title)) return null;
+  for (const [fn, r] of REG_SPECIAL) if (fn(t)) return { ...r, variable: false, known: true };
   for (const [re, name, group, icon, variable, domain] of REG_KNOWN) if (re.test(t.title)) { let d = domain; if (!d && group === '보험' && /메리츠/.test(t.title)) d = 'meritzfire.com'; return { name: name || t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim(), group, icon, variable: !!variable, known: true, domain: d }; }
   if (t.category === '구독' || t.category === '소프트웨어·구독') return { name: t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim(), group: t.category === '구독' ? '구독·멤버십' : '작업 도구', icon: '🔁', known: true };
   if (REG_SKIP_CAT.has(t.category) || /할부/.test(t.memo || '')) return null;
@@ -796,6 +808,12 @@ function regulars() {
       if (c) { c.items.push(t); c.last = amt; c.months.push(ym); c.days.push(day); }
       else clusters.push({ day, last: amt, items: [t], months: [ym], days: [day] });
     });
+    if (svc.yearly) {
+      const lastT = list[list.length - 1];
+      plans.push({ name: svc.name, group: svc.group, icon: svc.icon, domain: svc.domain || '', note: svc.note, yearly: true, day: Number(lastT.date.slice(8)), month: lastT.date.slice(5, 7),
+        items: list, method: lastT.method, amount: Number(lastT.amount), last: lastT.date, active: (new Date(today()) - new Date(lastT.date)) / 864e5 <= 370 });
+      return;
+    }
     clusters.forEach(c => {
       const months = new Set(c.months).size;
       const span = monthsBetween(c.items[0].date, c.items[c.items.length - 1].date);
@@ -806,7 +824,7 @@ function regulars() {
       const lastT = c.items[c.items.length - 1];
       const gap = (new Date(today()) - new Date(lastT.date)) / 864e5;
       const recent = c.items.slice(-3).map(t => Number(t.amount));
-      plans.push({ name: svc.name, group: svc.group, icon: svc.icon, domain: svc.domain || '', variable: !!svc.variable, day, items: c.items, method: lastT.method,
+      plans.push({ name: svc.name, group: svc.group, icon: svc.icon, domain: svc.domain || '', note: svc.note, variable: !!svc.variable, day, items: c.items, method: lastT.method,
         amount: Math.round(recent.reduce((a, b) => a + b, 0) / recent.length), last: lastT.date, active: gap <= (svc.variable ? 50 : 40) });
     });
   });
@@ -832,14 +850,15 @@ function dueDate(p, ym) {
   const last = new Date(y, m, 0).getDate();
   return ym + '-' + String(Math.min(p.day, last)).padStart(2, '0');
 }
+const mAmt = p => p.yearly ? Math.round(p.amount / 12) : p.amount;
 function paidIn(p, ym) { return p.items.some(t => t.date.slice(0, 7) === ym); }
 function viewRegular() {
   const { plans } = regulars();
   const act = plans.filter(p => p.active), off = plans.filter(p => !p.active && !p.installment);
   const ym = S.ui.regYm && S.ui.regYm >= today().slice(0, 7) ? S.ui.regYm : today().slice(0, 7);
   const isThis = ym === today().slice(0, 7);
-  const inMonthPlans = act.filter(p => !p.installment || (ym <= p.installment.endYm && ym >= p.last.slice(0, 7)));
-  const total = act.filter(p => !p.installment || p.installment.endYm >= today().slice(0, 7)).reduce((a, p) => a + p.amount, 0);
+  const inMonthPlans = act.filter(p => (!p.installment || (ym <= p.installment.endYm && ym >= p.last.slice(0, 7))) && (!p.yearly || ym.slice(5) === p.month));
+  const total = act.filter(p => !p.installment || p.installment.endYm >= today().slice(0, 7)).reduce((a, p) => a + mAmt(p), 0);
   const monthTotal = inMonthPlans.reduce((a, p) => a + p.amount, 0);
   const t0 = today();
   const left = inMonthPlans.filter(p => !(isThis && (dueDate(p, ym) < t0 || paidIn(p, ym))));
@@ -862,17 +881,18 @@ function viewRegular() {
   const upcoming = [];
   [today().slice(0, 7), addMonth(today().slice(0, 7), 1)].forEach(mm => act.forEach(p => {
     if (p.installment && (mm > p.installment.endYm)) return;
+    if (p.yearly && mm.slice(5) !== p.month) return;
     const due = dueDate(p, mm); const diff = Math.round((new Date(due) - new Date(t0)) / 864e5);
     if (diff >= 0 && diff <= 30 && !(mm === today().slice(0, 7) && paidIn(p, mm))) upcoming.push({ p, due, diff });
   }));
   upcoming.sort((a, b) => a.due.localeCompare(b.due));
   // 묶음별
   const groups = {}; act.forEach(p => { (groups[p.group] = groups[p.group] || []).push(p); });
-  const gArr = Object.entries(groups).map(([g, l]) => [g, l, l.reduce((a, p) => a + p.amount, 0)]).sort((a, b) => b[2] - a[2]);
+  const gArr = Object.entries(groups).map(([g, l]) => [g, l, l.reduce((a, p) => a + mAmt(p), 0)]).sort((a, b) => b[2] - a[2]);
   const item = (p, right) => `<div class="reg-item"><span class="ico ${p.domain ? 'ico-logo' : ''}" style="background:${p.domain ? 'var(--surface)' : ((REG_GROUPS[p.group] || {}).color || '#8B95A1') + '1F'}">${logo(p)}</span>
       <span class="row-main"><span class="row-title">${esc(p.label)}</span><span class="row-sub">${right}</span></span>
       <span class="row-amt num">${p.variable ? '약 ' : ''}${wonU(p.amount)}</span></div>`;
-  const sub = p => [p.installment ? `할부 ${p.installment.left}회 남음` : `매달 ${p.day}일`, p.variable ? '금액 변동' : '', p.method].filter(Boolean).join(' · ');
+  const sub = p => [p.installment ? `할부 ${p.installment.left}회 남음` : p.yearly ? `매년 ${Number(p.month)}월 ${p.day}일 · 월 환산 ${won(mAmt(p))}원` : `매달 ${p.day}일`, p.variable ? '금액 변동' : '', p.note || p.method].filter(Boolean).join(' · ');
   return `<section class="card reg-hero">
       <div class="hero-label">매달 나가는 돈</div>
       <div class="hero-amt num">${won(total)}<small>원</small></div>

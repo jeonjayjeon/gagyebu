@@ -733,44 +733,44 @@ const REG_GROUPS = {
 };
 // [패턴, 이름, 묶음, 아이콘, 금액변동(사용량)·결제일 들쭉날쭉한 요금이면 true]
 const REG_KNOWN = [
-  [/higgsfield/i, 'Higgsfield', '작업 도구', '🎬'],
-  [/anthropic\*\s*claude|claude\.ai|claude\s*sub/i, 'Claude', '작업 도구', '✳️'],
-  [/^anthropic/i, 'Claude 추가 사용량', '작업 도구', '✳️'],
-  [/midjourney/i, 'Midjourney', '작업 도구', '⛵'],
-  [/notion/i, 'Notion', '작업 도구', '📝'],
-  [/adobe/i, 'Adobe', '작업 도구', '🅰️'],
-  [/구글클라우드|google\s?cloud/i, 'Google Cloud', '작업 도구', '☁️', true],
-  [/figma|피그마/i, 'Figma', '작업 도구', '🎨'],
-  [/openai|chatgpt/i, 'ChatGPT', '작업 도구', '🤖'],
-  [/wix/i, 'Wix', '작업 도구', '🌐'],
-  [/한글과컴퓨터|한컴/, '한컴오피스', '작업 도구', '📄'],
-  [/canva|framer|github|elevenlabs|runway|aicron/i, null, '작업 도구', '🧩'],
-  [/youtube|유튜브/i, 'YouTube Premium', '구독·멤버십', '▶️'],
-  [/구글페이먼트|google\s?play/i, 'Google Play', '구독·멤버십', '🟢'],
-  [/^apple$|apple\.com|애플|itunes/i, 'Apple', '구독·멤버십', '🍎'],
-  [/disney/i, 'Disney+', '구독·멤버십', '🏰'],
-  [/넷플릭스|netflix/i, 'Netflix', '구독·멤버십', '🎞️'],
-  [/spotify|스포티파이|멜론|티빙|웨이브|왓챠|쿠팡플레이/i, null, '구독·멤버십', '🎵'],
-  [/와우\s?멤버십/, '쿠팡 와우', '구독·멤버십', '🛒'],
-  [/배민클럽/, '배민클럽', '구독·멤버십', '🛵'],
-  [/바로알림/, '카드 결제알림', '구독·멤버십', '💬'],
-  [/^월세$|월세/, '월세', '주거', '🏠'],
-  [/관리비/, '관리비', '주거', '🏢', true],
-  [/예스코|도시가스/, '도시가스', '주거', '🔥', true],
-  [/한국전력|한전|전기요금/, '전기요금', '주거', '💡', true],
-  [/수도/, '수도요금', '주거', '🚰', true],
-  [/lg\s?u\+|lgu\+|엘지유플러스/i, 'LG U+', '통신', '📱', true],
-  [/skt|sk텔레콤|에스케이텔레콤/i, 'SKT', '통신', '📱', true],
-  [/^kt$|케이티|kt통신/i, 'KT', '통신', '📱', true],
-  [/메리츠|화재|생명|손해보험|보험/, null, '보험', '🛡️'],
-  [/대출/, '대출 상환', '대출', '🏦', true]
+  [/higgsfield/i, 'Higgsfield', '작업 도구', '🎬', false, 'higgsfield.ai'],
+  [/anthropic\*\s*claude|claude\.ai|claude\s*sub/i, 'Claude', '작업 도구', '✳️', false, 'claude.ai'],
+  [/^anthropic/i, 'Claude 추가 사용량', '작업 도구', '✳️', false, 'claude.ai'],
+  [/midjourney/i, 'Midjourney', '작업 도구', '⛵', false, 'midjourney.com'],
+  [/notion/i, 'Notion', '작업 도구', '📝', false, 'notion.so'],
+  [/adobe/i, 'Adobe', '작업 도구', '🅰️', false, 'adobe.com'],
+  [/구글클라우드|google\s?cloud/i, 'Google Cloud', '작업 도구', '☁️', true, 'cloud.google.com'],
+  [/figma|피그마/i, 'Figma', '작업 도구', '🎨', false, 'figma.com'],
+  [/openai|chatgpt/i, 'ChatGPT', '작업 도구', '🤖', false, 'chatgpt.com'],
+  [/wix/i, 'Wix', '작업 도구', '🌐', false, 'wix.com'],
+  [/한글과컴퓨터|한컴/, '한컴오피스', '작업 도구', '📄', false, 'hancom.com'],
+  [/canva|framer|github|elevenlabs|runway|aicron/i, null, '작업 도구', '🧩', false, ''],
+  [/youtube|유튜브/i, 'YouTube Premium', '구독·멤버십', '▶️', false, 'youtube.com'],
+  [/구글페이먼트|google\s?play/i, 'Google Play', '구독·멤버십', '🟢', false, 'play.google.com'],
+  [/^apple$|apple\.com|애플|itunes/i, 'Apple', '구독·멤버십', '🍎', false, 'apple.com'],
+  [/disney/i, 'Disney+', '구독·멤버십', '🏰', false, 'disneyplus.com'],
+  [/넷플릭스|netflix/i, 'Netflix', '구독·멤버십', '🎞️', false, 'netflix.com'],
+  [/spotify|스포티파이|멜론|티빙|웨이브|왓챠|쿠팡플레이/i, null, '구독·멤버십', '🎵', false, ''],
+  [/와우\s?멤버십/, '쿠팡 와우', '구독·멤버십', '🛒', false, 'coupang.com'],
+  [/배민클럽/, '배민클럽', '구독·멤버십', '🛵', false, 'baemin.com'],
+  [/바로알림/, '카드 결제알림', '구독·멤버십', '💬', false, 'samsungcard.com'],
+  [/^월세$|월세/, '월세', '주거', '🏠', false, ''],
+  [/관리비/, '관리비', '주거', '🏢', true, ''],
+  [/예스코|도시가스/, '도시가스', '주거', '🔥', true, 'yesco.co.kr'],
+  [/한국전력|한전|전기요금/, '전기요금', '주거', '💡', true, 'kepco.co.kr'],
+  [/수도/, '수도요금', '주거', '🚰', true, ''],
+  [/lg\s?u\+|lgu\+|엘지유플러스/i, 'LG U+', '통신', '📱', true, 'lguplus.com'],
+  [/skt|sk텔레콤|에스케이텔레콤/i, 'SKT', '통신', '📱', true, 'tworld.co.kr'],
+  [/^kt$|케이티|kt통신/i, 'KT', '통신', '📱', true, 'kt.com'],
+  [/메리츠|화재|생명|손해보험|보험/, null, '보험', '🛡️', false, ''],
+  [/대출/, '대출 상환', '대출', '🏦', true, ''],
 ];
 const REG_SKIP_CAT = new Set(['식비', '카페·간식', '쇼핑', '생활·마트', '교통', '여행', '문화·여가', '의료·건강', '경조사·선물', '접대·회의', '교통·출장']);
 function regOf(t) {
   const isLoan = t.type === '이체' && transferKind(t) === '대출상환';
   if (t.type !== '지출' && !isLoan) return null;
   if (isLoan && /전액|보증료/.test(t.title)) return null;
-  for (const [re, name, group, icon, variable] of REG_KNOWN) if (re.test(t.title)) return { name: name || t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim(), group, icon, variable: !!variable, known: true };
+  for (const [re, name, group, icon, variable, domain] of REG_KNOWN) if (re.test(t.title)) { let d = domain; if (!d && group === '보험' && /메리츠/.test(t.title)) d = 'meritzfire.com'; return { name: name || t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim(), group, icon, variable: !!variable, known: true, domain: d }; }
   if (t.category === '구독' || t.category === '소프트웨어·구독') return { name: t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim(), group: t.category === '구독' ? '구독·멤버십' : '작업 도구', icon: '🔁', known: true };
   if (REG_SKIP_CAT.has(t.category) || /할부/.test(t.memo || '')) return null;
   const key = t.title.replace(/^토스\s*/, '').replace(/\(주\)|㈜|주식회사|유한회사|\d+/g, '').replace(/\s+/g, '').trim();
@@ -806,7 +806,7 @@ function regulars() {
       const lastT = c.items[c.items.length - 1];
       const gap = (new Date(today()) - new Date(lastT.date)) / 864e5;
       const recent = c.items.slice(-3).map(t => Number(t.amount));
-      plans.push({ name: svc.name, group: svc.group, icon: svc.icon, variable: !!svc.variable, day, items: c.items, method: lastT.method,
+      plans.push({ name: svc.name, group: svc.group, icon: svc.icon, domain: svc.domain || '', variable: !!svc.variable, day, items: c.items, method: lastT.method,
         amount: Math.round(recent.reduce((a, b) => a + b, 0) / recent.length), last: lastT.date, active: gap <= (svc.variable ? 50 : 40) });
     });
   });
@@ -822,6 +822,10 @@ function regulars() {
   plans.forEach(p => { p.label = p.active && cnt[p.name] > 1 && !p.installment ? `${p.name} · ${p.day}일` : p.name; });
   plans.sort((a, b) => a.day - b.day);
   return { plans, extras };
+}
+function logo(p, cls) {
+  const em = esc(p.icon);
+  return p.domain ? `<img class="${cls || 'fav'}" src="https://www.google.com/s2/favicons?domain=${p.domain}&sz=64" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'${em}'}))">` : em;
 }
 function dueDate(p, ym) {
   const [y, m] = ym.split('-').map(Number);
@@ -851,7 +855,7 @@ function viewRegular() {
     const list = byDay[d] || [], sum = list.reduce((a, p) => a + p.amount, 0);
     const ds = ym + '-' + String(d).padStart(2, '0'), past = isThis && ds < t0, isToday = ds === t0;
     cells += `<button class="cal-cell ${list.length ? 'has' : ''} ${past ? 'past' : ''} ${isToday ? 'today' : ''} ${sel === d ? 'sel' : ''}" ${list.length ? `data-regday="${d}"` : 'disabled'}>
-      <span class="cal-d">${d}</span>${list.length ? `<span class="cal-amt num">${shortWon(sum)}</span>` : ''}</button>`;
+      <span class="cal-d">${d}</span>${list.length ? `<span class="cal-logos">${list.slice(0, 3).map(p => `<span class="cal-logo">${logo(p, 'fav-s')}</span>`).join('')}${list.length > 3 ? `<span class="cal-more">+${list.length - 3}</span>` : ''}</span><span class="cal-amt num">${shortWon(sum)}</span>` : ''}</button>`;
   }
   const dayList = sel ? byDay[sel] : null;
   // 다가오는 결제 (오늘부터 30일)
@@ -865,7 +869,7 @@ function viewRegular() {
   // 묶음별
   const groups = {}; act.forEach(p => { (groups[p.group] = groups[p.group] || []).push(p); });
   const gArr = Object.entries(groups).map(([g, l]) => [g, l, l.reduce((a, p) => a + p.amount, 0)]).sort((a, b) => b[2] - a[2]);
-  const item = (p, right) => `<div class="reg-item"><span class="ico" style="background:${(REG_GROUPS[p.group] || {}).color || '#8B95A1'}1F">${p.icon}</span>
+  const item = (p, right) => `<div class="reg-item"><span class="ico ${p.domain ? 'ico-logo' : ''}" style="background:${p.domain ? 'var(--surface)' : ((REG_GROUPS[p.group] || {}).color || '#8B95A1') + '1F'}">${logo(p)}</span>
       <span class="row-main"><span class="row-title">${esc(p.label)}</span><span class="row-sub">${right}</span></span>
       <span class="row-amt num">${p.variable ? '약 ' : ''}${wonU(p.amount)}</span></div>`;
   const sub = p => [p.installment ? `할부 ${p.installment.left}회 남음` : `매달 ${p.day}일`, p.variable ? '금액 변동' : '', p.method].filter(Boolean).join(' · ');

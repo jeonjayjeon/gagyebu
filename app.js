@@ -654,8 +654,8 @@ function viewHome() {
   const dayN = isNow ? Number(today().slice(8)) : 31;
   const prevSame = spentUntil(addMonth(S.ym, -1), dayN);
   const diff = exp - prevSame;
-  const span = isNow ? (S.ui.span || 'month') : 'month';
-  const seg = isNow ? spanSeg() : '';
+  const span = 'month';
+  const seg = '';
   let hero;
   if (span !== 'month') {
     const [a, b] = spanRange(span), list = txs().filter(t => t.date >= a && t.date <= b);
@@ -668,7 +668,7 @@ function viewHome() {
       ${items.length ? `<div class="sp-items">${items.slice(0, 8).map(t => { const c = catOf(t); return `<button class="sp-item" data-span-go="${span}"><span class="ico" style="background:${c.color}1F">${c.icon}</span><b class="num">${shortWon(t.amount)}</b><em>${esc(((regOf(t) || {}).name || t.title.replace(/\(주\)|㈜|주식회사/g, '')).trim())}</em></button>`; }).join('')}</div>` : (avg ? `<div class="hero-pill"><span>평소 ${shortWon(avg)}</span></div>` : '')}
     </section>`;
   } else {
-    hero = `<section class="card hero2">${seg || `<div class="hero-label">${monthTitle()}</div>`}
+    hero = `<section class="card hero2"><div class="hero-label">${isNow ? '이번 달 쓴 돈' : monthTitle() + ' 쓴 돈'}</div>
       <div class="hero-amt num">${won(exp)}<small>원</small></div>
       ${prevSame ? `<div class="hero-pill"><b class="${diff > 0 ? 'up' : 'down'}">${diff > 0 ? '▲' : '▼'}${shortWon(Math.abs(diff))}</b><span>지난달${isNow ? ' 이맘때' : ''}</span></div>` : ''}
       ${briefHtml(S.ym)}
@@ -726,7 +726,7 @@ function viewList() {
   const f = S.filter;
   const srcFilter = f.uni || f.client || f.acct;
   const per = S.ui.iperiod || 'year';
-  const lspan = isNowMonth() && !srcFilter ? (S.ui.span || 'month') : 'month';
+  const lspan = 'month';
   let list = srcFilter && per === 'year' ? txs().filter(t => t.date.slice(0, 4) === S.ym.slice(0, 4) && t.date.slice(0, 7) <= S.ym) : byBook(inMonth(txs(), S.ym), S.ui.book);
   if (lspan !== 'month') { const [a, b] = spanRange(lspan); list = txs().filter(t => t.date >= a && t.date <= b); }
   if (f.type !== '전체') list = list.filter(t => t.type === f.type);
@@ -741,7 +741,7 @@ function viewList() {
   list.forEach(t => { (groups[t.date] = groups[t.date] || []).push(t); });
   const usedMethods = [...new Set(byBook(inMonth(txs(), S.ym), S.ui.book).map(t => t.method).filter(Boolean))];
   const exp = list.filter(t => t.type === '지출').reduce((s, t) => s + Number(t.amount), 0), inc = list.filter(t => t.type === '수입').reduce((s, t) => s + Number(t.amount), 0);
-  return `${isNowMonth() && !srcFilter ? spanSeg() : ''}<div class="search">${ICON.search}<input id="q" type="search" placeholder="가맹점, 카테고리, 메모 검색" value="${esc(f.q)}"></div>
+  return `<div class="search">${ICON.search}<input id="q" type="search" placeholder="가맹점, 카테고리, 메모 검색" value="${esc(f.q)}"></div>
   <div class="toolbar">${f.uni || f.client || f.acct ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.uni || f.client || f.acct)} ✕</button>` : ''}${[['전체', '전체'], ['지출', '지출'], ['수입', '수입'], ['이체', '계좌간·송금']].map(([x, l]) => `<button class="chip" data-ftype="${x}" aria-pressed="${f.type === x}">${l}</button>`).join('')}
     ${usedMethods.map(m => `<button class="chip" data-fmethod="${esc(m)}" aria-pressed="${f.method === m}">${esc(m)}</button>`).join('')}
     ${f.cat ? `<button class="chip" data-fcat="" aria-pressed="true">${esc(f.cat)} ✕</button>` : ''}

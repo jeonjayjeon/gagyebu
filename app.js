@@ -479,6 +479,7 @@ const ICON = {
   l: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
   r: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
   x: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  sub: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9h-2.2A6.8 6.8 0 1 1 12 5.2V3z" opacity=".55"/><path d="M12 1v6l4-3-4-3z"/><rect x="8" y="10" width="8" height="6" rx="1.5"/></svg>',
   up: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>',
   search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'
 };
@@ -511,13 +512,13 @@ function render() {
   if (!S.cfg) { root.innerHTML = viewOnboard(); bindOnboard(); return; }
   if (!S.data) S.data = { txs: [], categories: DEFAULT_CATS, methods: DEFAULT_METHODS, settings: { '개인 월예산': 2000000, '사업 월예산': 300000, '월 시작일': 1 } };
   const tab = S.ui.tab;
-  const body = tab === 'list' ? viewList() : tab === 'stats' ? viewStats() : tab === 'settings' ? viewSettings() : viewHome();
-  const showMonth = tab !== 'settings';
+  const body = tab === 'list' ? viewList() : tab === 'stats' ? viewStats() : tab === 'subs' ? viewSubs() : tab === 'settings' ? viewSettings() : viewHome();
+  const showMonth = tab !== 'settings' && tab !== 'subs';
   root.innerHTML = `
   <div class="app">
     <header class="top">
       <div class="top-row">
-        ${showMonth ? `<div class="month"><button data-act="prev" aria-label="이전 달">${ICON.l}</button><span class="num">${monthTitle()}</span><button data-act="next" aria-label="다음 달" ${S.ym >= today().slice(0, 7) ? 'disabled style="opacity:.25"' : ''}>${ICON.r}</button></div>` : `<div class="month"><span style="text-align:left">설정</span></div>`}
+        ${showMonth ? `<div class="month"><button data-act="prev" aria-label="이전 달">${ICON.l}</button><span class="num">${monthTitle()}</span><button data-act="next" aria-label="다음 달" ${S.ym >= today().slice(0, 7) ? 'disabled style="opacity:.25"' : ''}>${ICON.r}</button></div>` : `<div class="month"><span style="text-align:left">${tab === 'subs' ? '정기 구독' : '설정'}</span></div>`}
         <button class="upload-btn" data-act="file" aria-label="엑셀 올리기">${ICON.up}<span>엑셀 올리기</span></button>
       </div>
       ${showMonth ? `<div class="seg book-seg" role="group" aria-label="장부">${['전체', '개인', '사업'].map(b => `<button data-book="${b}" aria-pressed="${S.ui.book === b}">${b}</button>`).join('')}</div>` : ''}
@@ -526,7 +527,7 @@ function render() {
     <main>${body}</main>
   </div>
   <nav class="tabs" aria-label="메뉴"><div class="tabs-in">
-    ${tabBtn('home', '홈', ICON.home)}${tabBtn('list', '내역', ICON.list)}${tabBtn('stats', '분석', ICON.chart)}${tabBtn('settings', '설정', ICON.set)}
+    ${tabBtn('home', '홈', ICON.home)}${tabBtn('list', '내역', ICON.list)}${tabBtn('stats', '분석', ICON.chart)}${tabBtn('subs', '구독', ICON.sub)}${tabBtn('settings', '설정', ICON.set)}
   </div></nav>`;
   renderSync();
   bindMain();
@@ -717,6 +718,110 @@ function viewIncome(book) {
   const ag = group(incAll, t => t.method || '미지정');
   const aCard = ag.length > 1 ? `<section class="card"><h2>계좌별 입금</h2>${rowsOf(ag, 'acct', '🏦', '#00A661', ag[0][1].sum)}</section>` : '';
   return summary + lCard + pCard + aCard;
+}
+
+/* ───────────────────────── 정기 구독 ───────────────────────── */
+const SUB_SERVICES = [
+  [/higgsfield/i, 'Higgsfield', 'AI 영상·이미지 생성', '🎬'],
+  [/anthropic\*\s*claude|claude\.ai|claude\s*sub/i, 'Claude', 'AI 어시스턴트 구독 (Anthropic)', '✳️'],
+  [/^anthropic/i, 'Claude 추가 사용량', 'Anthropic 사용량·크레딧 결제', '✳️'],
+  [/midjourney/i, 'Midjourney', 'AI 이미지 생성', '⛵'],
+  [/notion/i, 'Notion', '문서·워크스페이스', '📝'],
+  [/adobe/i, 'Adobe Creative Cloud', '디자인 툴', '🅰️'],
+  [/구글클라우드|google\s?cloud/i, 'Google Cloud', '클라우드 사용료 (사용량에 따라 변동)', '☁️'],
+  [/youtube|유튜브/i, 'YouTube Premium', '동영상 구독', '▶️'],
+  [/구글페이먼트|google\s?play/i, 'Google Play', '앱·구독 결제 (구글 계정)', '🟢'],
+  [/^apple$|apple\.com|애플|itunes/i, 'Apple', 'App Store·iCloud 결제', '🍎'],
+  [/disney/i, 'Disney+', '동영상 구독', '🏰'],
+  [/넷플릭스|netflix/i, 'Netflix', '동영상 구독', '🎞️'],
+  [/와우\s?멤버십/, '쿠팡 와우 멤버십', '쇼핑 멤버십', '🛒'],
+  [/배민클럽/, '배민클럽', '배달 멤버십', '🛵'],
+  [/바로알림/, '카드 결제알림', '삼성카드 문자 알림 서비스', '💬'],
+  [/한글과컴퓨터|한컴/, '한컴오피스', '문서 프로그램', '📄'],
+  [/wix/i, 'Wix', '웹사이트 호스팅', '🌐'],
+  [/figma|피그마/i, 'Figma', '디자인 툴', '🎨'],
+  [/openai|chatgpt/i, 'ChatGPT', 'AI 어시스턴트 (OpenAI)', '🤖'],
+  [/spotify|스포티파이|멜론|티빙|웨이브|왓챠|쿠팡플레이/i, null, '콘텐츠 구독', '🎵'],
+  [/canva|framer|github|elevenlabs|runway|aicron/i, null, '작업 도구 구독', '🧩']
+];
+function subOf(t) {
+  if (t.type !== '지출') return null;
+  for (const [re, name, what, icon] of SUB_SERVICES) if (re.test(t.title)) return { name: name || t.title.split(/\s{2,}|\s(?=[A-Z]{2,}\s)/)[0], what, icon };
+  if (t.category === '구독' || t.category === '소프트웨어·구독') return { name: t.title.replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim(), what: '정기 결제', icon: '🔁' };
+  return null;
+}
+function subscriptions() {
+  const by = {};
+  txs().forEach(t => { const s = subOf(t); if (s) (by[s.name] = by[s.name] || { ...s, list: [] }).list.push(t); });
+  const plans = [], irregular = [];
+  const dayDiff = (a, b) => { const d = Math.abs(a - b); return Math.min(d, 31 - d); };
+  Object.values(by).forEach(svc => {
+    const list = svc.list.slice().sort((a, b) => a.date.localeCompare(b.date));
+    const variable = /변동|사용량/.test(svc.what);
+    const clusters = [];
+    list.forEach(t => {
+      const day = Number(t.date.slice(8)), amt = Number(t.amount);
+      const c = clusters.find(c => c.months.slice(-1)[0] !== t.date.slice(0, 7) && ((dayDiff(c.day, day) <= 3 && (variable || Math.abs(amt - c.last) <= Math.max(c.last * 0.35, 1500))) || (amt === c.last && dayDiff(c.day, day) <= 8)));
+      if (c) { c.items.push(t); c.last = amt; c.months.push(t.date.slice(0, 7)); c.days.push(day); }
+      else clusters.push({ day, last: amt, items: [t], months: [t.date.slice(0, 7)], days: [day] });
+    });
+    clusters.forEach(c => {
+      const months = new Set(c.months).size;
+      const base = { name: svc.name, what: svc.what, icon: svc.icon, items: c.items, book: c.items[c.items.length - 1].book, method: c.items[c.items.length - 1].method };
+      if (months >= 2) {
+        const cnt = {}; c.days.forEach(d => { cnt[d] = (cnt[d] || 0) + 1; });
+        const day = Number(Object.entries(cnt).sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0]);
+        const lastT = c.items[c.items.length - 1];
+        const active = (new Date(today()) - new Date(lastT.date)) / 864e5 <= 40;
+        const recent = c.items.slice(-3).map(t => Number(t.amount));
+        plans.push({ ...base, day, amount: Number(lastT.amount), avg: Math.round(recent.reduce((a, b) => a + b, 0) / recent.length), last: lastT.date, active, variable,
+          year: c.items.filter(t => t.date >= addMonth(today().slice(0, 7), -11) + '-01').reduce((a, t) => a + Number(t.amount), 0) });
+      } else c.items.forEach(t => irregular.push({ ...base, items: [t], amount: Number(t.amount), last: t.date }));
+    });
+  });
+  // 같은 서비스에 요금제가 여러 개면 이름 뒤에 결제일 표시
+  const actCnt = {}, hasAct = {}; plans.forEach(p => { if (p.active) { actCnt[p.name] = (actCnt[p.name] || 0) + 1; hasAct[p.name] = true; } });
+  plans.forEach(p => { p.label = p.active ? (actCnt[p.name] > 1 ? p.name + ' (' + p.day + '일 결제분)' : p.name) : (hasAct[p.name] ? p.name + ' (이전 요금제)' : p.name); });
+  plans.sort((a, b) => (b.active - a.active) || a.day - b.day);
+  irregular.sort((a, b) => b.last.localeCompare(a.last));
+  return { plans, irregular };
+}
+function nextDate(day) {
+  const t = new Date(today()); let y = t.getFullYear(), m = t.getMonth();
+  const mk = (yy, mm) => { const last = new Date(yy, mm + 1, 0).getDate(); return new Date(yy, mm, Math.min(day, last)); };
+  let d = mk(y, m); if (d < t) d = mk(y, m + 1);
+  return d;
+}
+function viewSubs() {
+  const { plans, irregular } = subscriptions();
+  const act = plans.filter(p => p.active), off = plans.filter(p => !p.active);
+  const tot = act.reduce((a, p) => a + p.avg, 0), biz = act.filter(p => p.book === '사업').reduce((a, p) => a + p.avg, 0);
+  const soon = act.map(p => ({ p, d: nextDate(p.day) })).sort((a, b) => a.d - b.d).slice(0, 3);
+  const row = p => `<tr>
+      <td><div class="sub-name"><span>${p.icon}</span><div><b>${esc(p.label)} <i class="pill ${p.book === '사업' ? 'biz' : ''}">${p.book === '사업' ? '사업' : '개인'}</i></b><small>${esc(p.what)}</small></div></div></td>
+      <td class="c num"><b>${p.day}일</b><small>${esc(p.method)}</small></td>
+      <td class="r num"><b>${won(p.avg)}</b>${p.variable || Math.abs(p.amount - p.avg) > p.avg * 0.05 ? '<small>변동</small>' : ''}</td>
+    </tr>`;
+  const offRow = p => `<tr class="off"><td><div class="sub-name"><span>${p.icon}</span><div><b>${esc(p.label)}</b><small>마지막 결제 ${Number(p.last.slice(5, 7))}월 ${Number(p.last.slice(8))}일</small></div></div></td><td class="c num">${p.day}일</td><td class="r num">${won(p.amount)}<small>해지 추정</small></td></tr>`;
+  const head = '<thead><tr><th>서비스</th><th class="c">결제일</th><th class="r">월 금액</th></tr></thead>';
+  const irrMap = {};
+  irregular.filter(x => x.amount >= 1000 && x.last >= addMonth(today().slice(0, 7), -2) + '-01').forEach(x => { const k = x.name + '|' + x.last; if (irrMap[k]) { irrMap[k].amount += x.amount; irrMap[k].n++; } else irrMap[k] = { ...x, n: 1 }; });
+  const irrSum = Object.values(irrMap);
+  return `<section class="card">
+      <div class="hero-label">매달 나가는 구독</div>
+      <div class="hero-amt num">${won(tot)}<small>원</small></div>
+      <div class="trio" style="grid-template-columns:repeat(2,1fr)">
+        <div><span>사업(작업 도구)</span><b class="num" style="color:#8B5CF6">${shortWon(biz)}원</b></div>
+        <div><span>개인</span><b class="num">${shortWon(tot - biz)}원</b></div>
+      </div>
+      ${soon.length ? `<p class="hint">다음 결제: ${soon.map(x => `${x.d.getMonth() + 1}/${x.d.getDate()} ${esc(x.p.label)} ${shortWon(x.p.avg)}원`).join(' · ')}</p>` : ''}
+    </section>
+    <section class="card"><h2>이용 중 ${act.length}개</h2>
+      ${act.length ? `<div class="tbl-wrap"><table class="sub-tbl">${head}<tbody>${act.map(row).join('')}</tbody></table></div>
+      <p class="help" style="margin:10px 0 0">월 금액은 최근 3번 결제의 평균이에요. 해외 결제는 환율에 따라 조금씩 달라져요.</p>` : '<p class="help">아직 정기 결제가 보이지 않아요.</p>'}
+    </section>
+    ${off.length ? `<section class="card"><h2>최근 결제가 없는 구독</h2><div class="tbl-wrap"><table class="sub-tbl">${head}<tbody>${off.map(offRow).join('')}</tbody></table></div></section>` : ''}
+    ${irrSum.length ? `<section class="card"><h2>비정기 결제 (최근 3개월)</h2>${irrSum.slice(0, 12).map(x => `<div class="set-row"><span style="color:var(--ink)">${x.icon} ${esc(x.name)}<small style="display:block;color:var(--sub);font-size:12px">${Number(x.last.slice(5, 7))}월 ${Number(x.last.slice(8))}일${x.n > 1 ? ' · ' + x.n + '건' : ''} · ${esc(x.what)}</small></span><b class="num">${wonU(x.amount)}</b></div>`).join('')}</section>` : ''}`;
 }
 
 /* 설정 */

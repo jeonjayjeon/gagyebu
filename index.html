@@ -289,6 +289,44 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 .cal-cell.past .cal-logo{box-shadow:0 0 0 1.5px var(--surface2);opacity:.6}
 .fav-s{width:13px;height:13px;display:block}
 .cal-more{font-size:9px;color:var(--sub);margin-left:2px;align-self:center}
+.hero2 .hero-amt{font-size:36px}
+.hero-note b.up{color:var(--red)}.hero-note b.down{color:var(--blue)}
+.insight b.up{color:var(--red)}.insight b.down{color:var(--blue)}
+.budget-line{margin:16px 0 6px}.budget-line .pace{margin:0 0 8px}
+.pace-legend b{font-weight:700;color:var(--ink)}
+.kv{display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;margin-top:12px;border-top:1px solid var(--line);font-size:15px}
+.kv+.kv{margin-top:0;border-top:0;padding-top:8px}
+.kv span{color:var(--ink2)}.kv b{font-weight:700}
+.kv em{font-style:normal;font-size:11px;color:var(--sub);background:var(--surface2);border-radius:6px;padding:1px 6px;margin-left:4px}
+.muted-row b{color:var(--sub)}
+.card.tap{cursor:pointer}
+.up-chips{display:flex;gap:8px;overflow-x:auto;margin:0 -20px;padding:0 20px 2px;scrollbar-width:none}
+.up-chips::-webkit-scrollbar{display:none}
+.up-chip{flex:none;width:104px;background:var(--surface2);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:3px}
+.up-chip b{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.up-chip span.num{font-size:12px;color:var(--blue);font-weight:700}
+.up-chip em{font-style:normal;font-size:14px;font-weight:700}
+.up-logo{width:30px;height:30px;border-radius:9px;background:var(--surface);display:grid;place-items:center;font-size:16px;margin-bottom:4px;overflow:hidden}
+.up-logo .fav{width:20px;height:20px}
+.cat-row{display:flex;align-items:center;gap:14px;padding:9px 0;width:100%;text-align:left}
+.cat-row:active{opacity:.6}
+.more-btn{width:100%;margin-top:6px;height:42px;border-radius:12px;background:var(--surface2);font-size:14px;font-weight:600;color:var(--ink2)}
+.mini-seg{display:inline-flex;background:var(--line);border-radius:9px;padding:2px}
+.mini-seg button{font-size:12px;font-weight:600;color:var(--sub);padding:4px 10px;border-radius:7px}
+.mini-seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink)}
+.tabs2{display:flex;gap:6px;margin:18px 0 6px}
+.tabs2 button{flex:1;height:36px;border-radius:10px;background:var(--surface2);font-size:14px;font-weight:600;color:var(--sub)}
+.tabs2 button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.bars2{position:relative;display:flex;align-items:flex-end;gap:10px;padding-top:4px}
+.bcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bwrap{height:136px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px}
+.blab{height:20px;line-height:20px}
+.bcol i{display:block;width:70%;max-width:34px;border-radius:8px 8px 4px 4px;background:var(--faint)}
+.bcol.now i{background:var(--blue)}
+.bval{font-size:11px;color:var(--sub);font-weight:600}.bcol.now .bval{color:var(--blue);font-weight:800}
+.blab{font-size:12px;color:var(--sub)}.bcol.now .blab{color:var(--ink);font-weight:700}
+.avgline{position:absolute;left:0;right:0;border-top:1.5px dashed var(--faint);pointer-events:none}
+.avgline span{position:absolute;right:0;top:-18px;font-size:11px;color:var(--sub);background:var(--surface);padding:0 4px}
 </style>
 </head>
 <body>
@@ -298,6 +336,6 @@ textarea.input{height:120px;padding:12px 14px;resize:vertical;line-height:1.5}
 <div class="toast" id="toast" role="status"><span id="toastMsg"></span><button id="toastBtn" hidden>실행 취소</button></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

@@ -542,49 +542,64 @@ function renderSync() {
   else if (S.syncErr) { t = S.syncErr; warn = true; }
   else if (S.syncing) t = '시트와 맞추는 중…';
   else if (S.queue.length) t = `${S.queue.length}건 보내는 중…`;
-  else if (S.lastSync) t = 'Google 시트와 연결됨';
+  else if (S.lastSync) t = '';
   el.textContent = t; el.className = 'sync' + (warn ? ' warn' : '');
 }
 
 /* 홈 */
+function spentUntil(ym, day) { const [a] = monthRange(ym); return txs().filter(t => t.type === '지출' && t.date >= a && t.date.slice(0, 7) === ym && Number(t.date.slice(8)) <= day).reduce((s, t) => s + Number(t.amount), 0); }
 function viewHome() {
-  const all = inMonth(txs(), S.ym), book = S.ui.book, s = settings();
-  const list = byBook(all, book);
+  const all = inMonth(txs(), S.ym), s = settings();
   const isNow = isNowMonth();
-  const expBook = book === '사업' ? '사업' : book === '개인' ? '개인' : null;
-  const exp = sum(all, '지출', expBook), inc = sum(all, '수입', expBook);
-  const tr = list.filter(t => transferKind(t) === '계좌간 거래').reduce((a, t) => a + Number(t.amount), 0);
-  const budget = book === '사업' ? Number(s['사업 월예산']) || 0 : book === '개인' ? Number(s['개인 월예산']) || 0 : (Number(s['개인 월예산']) || 0) + (Number(s['사업 월예산']) || 0);
+  const exp = sum(all, '지출'), inc = sum(all, '수입');
+  const tr = all.filter(t => transferKind(t) === '계좌간 거래').reduce((a, t) => a + Number(t.amount), 0);
+  const budget = (Number(s['개인 월예산']) || 0) + (Number(s['사업 월예산']) || 0);
   const left = budget - exp, pct = budget ? Math.round(exp / budget * 100) : 0;
-  const hero = `<section class="card">
-      <div class="hero-label">${isNow ? '이번 달' : monthTitle()} 쓴 돈${book === '사업' ? ' (사업 경비)' : ''}</div>
+  // 지난달 같은 날까지와 비교
+  const dayN = isNow ? Number(today().slice(8)) : 31;
+  const prevSame = spentUntil(addMonth(S.ym, -1), dayN);
+  const diff = exp - prevSame;
+  const cmp = prevSame ? `지난달 ${isNow ? '이맘때' : ''}보다 <b class="${diff > 0 ? 'up' : 'down'}">${shortWon(Math.abs(diff))}원 ${diff > 0 ? '더' : '덜'}</b> 썼어요` : '';
+  const hero = `<section class="card hero2">
+      <div class="hero-label">${isNow ? '이번 달' : monthTitle()} 쓴 돈</div>
       <div class="hero-amt num">${won(exp)}<small>원</small></div>
-      ${budget ? `<div class="pace" role="img" aria-label="예산 ${pct}% 사용"><div class="pace-fill ${exp > budget ? 'over' : ''}" style="width:${Math.min(100, pct)}%"></div></div>
-      <div class="pace-legend"><span>예산 ${shortWon(budget)}원 중 ${pct}%</span><span class="${left < 0 ? 'over-t' : ''}">${left < 0 ? shortWon(-left) + '원 초과' : shortWon(left) + '원 남음'}</span></div>` : ''}
-      <div class="trio">
-        <div><span>수입</span><b class="num plus">${shortWon(inc)}원</b></div>
-        <div><span>지출</span><b class="num">${shortWon(exp)}원</b></div>
-        <div><span>계좌간 거래</span><b class="num muted">${shortWon(tr)}원</b></div>
-      </div>
-      <p class="hint">계좌간 거래는 내 계좌끼리 옮긴 돈이라 수입·지출에 넣지 않아요.</p>
+      ${cmp ? `<div class="hero-note">${cmp}</div>` : ''}
+      ${budget ? `<div class="budget-line"><div class="pace"><div class="pace-fill ${exp > budget ? 'over' : ''}" style="width:${Math.min(100, pct)}%"></div></div>
+        <div class="pace-legend"><span>예산 ${shortWon(budget)}원의 ${pct}%</span><b class="${left < 0 ? 'over-t' : ''}">${left < 0 ? shortWon(-left) + '원 초과' : shortWon(left) + '원 남음'}</b></div></div>` : ''}
+      <div class="kv"><span>들어온 돈</span><b class="num plus">+${wonU(inc)}</b></div>
+      <div class="kv muted-row"><span>계좌간 거래 <em>합계 제외</em></span><b class="num">${wonU(tr)}</b></div>
     </section>`;
+  // 다가오는 정기결제
+  let upHtml = '';
+  if (isNow) {
+    const act = regulars().plans.filter(p => p.active);
+    const ups = [];
+    [today().slice(0, 7), addMonth(today().slice(0, 7), 1)].forEach(mm => act.forEach(p => {
+      if (p.installment && mm > p.installment.endYm) return; if (p.yearly && mm.slice(5) !== p.month) return;
+      const due = dueDate(p, mm), d = Math.round((new Date(due) - new Date(today())) / 864e5);
+      if (d >= 0 && d <= 14 && !(mm === today().slice(0, 7) && paidIn(p, mm))) ups.push({ p, due, d });
+    }));
+    ups.sort((a, b) => a.due.localeCompare(b.due));
+    const upSum = ups.reduce((a, u) => a + u.p.amount, 0);
+    if (ups.length) upHtml = `<section class="card tap" data-tab="subs"><h2>2주 안에 나갈 정기결제<span class="more">${shortWon(upSum)}원 ›</span></h2>
+      <div class="up-chips">${ups.slice(0, 6).map(u => `<div class="up-chip"><span class="up-logo">${logo(u.p)}</span><b>${esc(u.p.label)}</b><span class="num">${u.d === 0 ? '오늘' : u.d === 1 ? '내일' : Number(u.due.slice(5, 7)) + '/' + Number(u.due.slice(8))}</span><em class="num">${shortWon(u.p.amount)}원</em></div>`).join('')}</div></section>`;
+  }
+  // 카테고리
   const catSums = {};
-  list.filter(t => t.type === '지출').forEach(t => { catSums[t.category] = (catSums[t.category] || 0) + Number(t.amount); });
+  all.filter(t => t.type === '지출').forEach(t => { catSums[t.category] = (catSums[t.category] || 0) + Number(t.amount); });
   const catArr = Object.entries(catSums).sort((a, b) => b[1] - a[1]);
   const total = catArr.reduce((a, b) => a + b[1], 0);
-  const catHtml = catArr.slice(0, 5).map(([name, v]) => {
-    const c = catOf({ category: name, book: book === '사업' ? '사업' : '개인' });
-    return `<button class="catbar" data-cat="${esc(name)}">
-      <span class="ico" style="background:${c.color}1F">${c.icon}</span>
-      <span class="row-main"><span class="top-line"><span>${esc(name)}<em>${Math.round(v / total * 100)}%</em></span><span class="num">${wonU(v)}</span></span>
-      <span class="track"><i style="width:${Math.max(3, v / catArr[0][1] * 100)}%;background:${c.color}"></i></span></span></button>`;
-  }).join('');
-  const recent = [...list].sort(sortTx).slice(0, 5);
-  return `${hero}
+  const showAll = S.ui.catAll;
+  const catHtml = catArr.length ? `<div class="stack" style="margin:4px 0 14px">${catArr.slice(0, 6).map(([n, v]) => `<i style="width:${v / total * 100}%;background:${catOf({ category: n, book: '개인' }).color}"></i>`).join('')}</div>` + (showAll ? catArr : catArr.slice(0, 4)).map(([name, v]) => {
+    const c = catOf({ category: name, book: '개인' });
+    return `<button class="cat-row" data-cat="${esc(name)}"><span class="ico" style="background:${c.color}1F">${c.icon}</span><span class="row-main"><span class="row-title">${esc(name)}</span><span class="row-sub">${Math.round(v / total * 100)}%</span></span><span class="row-amt num">${wonU(v)}</span></button>`;
+  }).join('') + (catArr.length > 4 ? `<button class="more-btn" data-act="catall">${showAll ? '접기' : `${catArr.length - 4}개 더 보기`}</button>` : '') : '';
+  const recent = [...all].sort(sortTx).slice(0, 5);
+  return `${hero}${upHtml}
     ${catHtml ? `<section class="card"><h2>어디에 썼나요</h2>${catHtml}</section>` : ''}
     ${viewIncome('전체')}
     ${viewStats()}
-    <section class="card"><h2>최근 내역${recent.length ? '<button class="more" data-tab="list">전체</button>' : ''}</h2>
+    <section class="card"><h2>최근 내역${recent.length ? '<button class="more" data-tab="list">전체 ›</button>' : ''}</h2>
       ${recent.length ? recent.map(rowHtml).join('') : `<div class="empty-state"><div class="big">📄</div>이 달에는 내역이 없어요.<br>오른쪽 위 '엑셀 올리기'로 은행·카드 내역을 넣어 주세요.</div>`}
     </section>`;
 }
@@ -642,46 +657,15 @@ function viewList() {
 
 /* 분석 */
 function viewStats() {
-  const book = S.ui.book;
   const months = []; for (let i = 5; i >= 0; i--) months.push(addMonth(S.ym, -i));
-  const series = months.map(ym => {
-    const l = inMonth(txs(), ym);
-    if (book === '사업') return { ym, a: sum(l, '수입', '사업'), b: sum(l, '지출', '사업') };
-    if (book === '개인') return { ym, a: sum(l, '수입', '개인'), b: sum(l, '지출', '개인') };
-    return { ym, a: sum(l, '수입'), b: sum(l, '지출') };
-  });
-  const max = Math.max(1, ...series.map(s => Math.max(s.a, s.b)));
-  const aLabel = book === '사업' ? '매출' : '수입', bLabel = book === '사업' ? '경비' : '지출';
-  const bars = `<div class="bars">${series.map(s => `<div class="bar-col ${s.ym === S.ym ? 'now' : ''}"><div class="bar-pair"><i style="height:${s.b / max * 100}%;background:${s.ym === S.ym ? 'var(--ink)' : 'var(--faint)'}" title="${bLabel} ${wonU(s.b)}"></i><i style="height:${s.a / max * 100}%;background:var(--blue);opacity:${s.ym === S.ym ? 1 : .45}" title="${aLabel} ${wonU(s.a)}"></i></div><span>${Number(s.ym.slice(5))}월</span></div>`).join('')}</div>
-    <div class="legend"><span><i style="background:var(--ink)"></i>${bLabel}</span><span><i style="background:var(--blue)"></i>${aLabel}</span></div>`;
-  const cur = series[5], prev = series[4];
-  const avg3 = (series[2].b + series[3].b + series[4].b) / 3;
-  let insight = '';
-  if (cur.b || prev.b) {
-    insight = `이번 달 ${bLabel}은 <b class="num">${wonU(cur.b)}</b>로 지난달보다 <b class="num">${wonU(Math.abs(cur.b - prev.b))}</b> ${cur.b >= prev.b ? '많아요' : '적어요'}.`;
-    if (avg3) insight += ` 최근 3개월 평균은 <b class="num">${wonU(avg3)}</b>이에요.`;
-  } else insight = '내역이 쌓이면 지난달과 비교해 알려 드려요.';
-
-  const list = byBook(inMonth(txs(), S.ym), book).filter(t => t.type === '지출');
-  const cs = {}; list.forEach(t => { const k = t.book + '|' + t.category; cs[k] = (cs[k] || 0) + Number(t.amount); });
-  const arr = Object.entries(cs).sort((a, b) => b[1] - a[1]);
-  const tot = arr.reduce((s, x) => s + x[1], 0);
-  let donut = '';
-  if (tot) {
-    let acc = 0; const R = 54, C = 2 * Math.PI * R;
-    const segs = arr.map(([k, v]) => { const c = catOf({ category: k.split('|')[1], book: k.split('|')[0] }); const len = v / tot * C; const s = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${c.color}" stroke-width="20" stroke-dasharray="${Math.max(0, len - 1.5)} ${C}" stroke-dashoffset="${-acc}" transform="rotate(-90 70 70)"/>`; acc += len; return s; }).join('');
-    donut = `<div class="donut-wrap"><svg class="donut" width="140" height="140" viewBox="0 0 140 140" role="img" aria-label="카테고리별 지출 비율">${segs}<text x="70" y="64" text-anchor="middle" class="donut-center">총 ${bLabel}</text><text x="70" y="86" text-anchor="middle" class="donut-center-b num">${shortWon(tot)}원</text></svg>
-      <div style="flex:1;min-width:0">${arr.slice(0, 6).map(([k, v]) => { const c = catOf({ category: k.split('|')[1], book: k.split('|')[0] }); return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:3px 0"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${c.color};margin-right:6px"></i>${esc(k.split('|')[1])}</span><b class="num">${Math.round(v / tot * 100)}%</b></div>`; }).join('')}</div></div>`;
-  }
-  // 결제수단
-  const ms = {}; list.forEach(t => { ms[t.method || '미지정'] = (ms[t.method || '미지정'] || 0) + Number(t.amount); });
-  const marr = Object.entries(ms).sort((a, b) => b[1] - a[1]);
-  // 사업 손익표
-  const pl = book !== '개인' ? `<section class="card"><h2>사업 손익</h2><table class="pl num"><thead><tr><th>월</th><th>매출</th><th>경비</th><th>순이익</th></tr></thead><tbody>${months.slice().reverse().map(ym => { const l = inMonth(txs(), ym); const a = sum(l, '수입', '사업'), b = sum(l, '지출', '사업'); return `<tr><td>${Number(ym.slice(5))}월</td><td>${won(a)}</td><td>${won(b)}</td><td class="${a - b < 0 ? 'neg' : a - b > 0 ? 'pos' : ''}">${won(a - b)}</td></tr>`; }).join('')}</tbody></table>
-    <p class="help" style="margin:12px 0 0">종합소득세 신고 때 경비 증빙 정리에 그대로 쓸 수 있도록 시트의 '월별요약' 탭에도 같은 숫자가 계산돼요.</p></section>` : '';
-  return `<section class="card"><h2>최근 6개월 흐름</h2>${bars}<p class="insight" style="margin-top:16px">${insight}</p></section>`;
+  const series = months.map(ym => { const l = inMonth(txs(), ym); return { ym, inc: sum(l, '수입'), exp: sum(l, '지출') }; });
+  const max = Math.max(1, ...series.map(s => s.exp));
+  const avg = series.slice(0, 5).filter(s => s.exp).reduce((a, s, _, arr) => a + s.exp / arr.length, 0);
+  const cur = series[5];
+  const bars = `<div class="bars2">${series.map(s => `<div class="bcol ${s.ym === S.ym ? 'now' : ''}"><span class="bwrap"><span class="bval num">${s.exp ? shortWon(s.exp) : ''}</span><i style="height:${Math.max(2, Math.round(s.exp / max * 110))}px"></i></span><span class="blab">${Number(s.ym.slice(5))}월</span></div>`).join('')}${avg ? `<div class="avgline" style="bottom:${24 + avg / max * 110}px"><span>평균 ${shortWon(avg)}</span></div>` : ''}</div>`;
+  const msg = avg ? `${monthTitle()} 지출은 평균보다 <b class="${cur.exp > avg ? 'up' : 'down'}">${shortWon(Math.abs(cur.exp - avg))}원 ${cur.exp > avg ? '많아요' : '적어요'}</b>` : '';
+  return `<section class="card"><h2>월별 지출</h2>${msg ? `<p class="insight" style="margin:-6px 0 10px">${msg}</p>` : ''}${bars}</section>`;
 }
-
 
 /* 수입 분석: 대학별 강의 수입 + 프로젝트(거래처)별 수입 */
 function viewIncome(book) {
@@ -702,23 +686,21 @@ function viewIncome(book) {
   const L = tot(lect), P = tot(proj), O = tot(other), T = L + P + O;
   const showL = book !== '사업', showP = book !== '개인';
   const share = (v) => T ? Math.round(v / T * 100) : 0;
-  const summary = `<section class="card"><h2>${periodLabel} 들어온 돈</h2>${seg}
-    <div class="hero-amt num" style="margin-top:0">${won(book === '사업' ? P : book === '개인' ? L + O : T)}<small>원</small></div>
-    ${T ? `<div class="pace" style="margin:14px 0 8px;display:flex;overflow:hidden">${showL && L ? `<i style="display:block;height:100%;width:${share(L)}%;background:var(--blue)"></i>` : ''}${showP && P ? `<i style="display:block;height:100%;width:${share(P)}%;background:#8B5CF6"></i>` : ''}${O && book !== '사업' ? `<i style="display:block;height:100%;width:${share(O)}%;background:var(--faint)"></i>` : ''}</div>` : ''}
-    <div class="hero-split">${showL ? `<div class="mini"><span>강의 수입</span><b class="num" style="color:var(--blue)">${wonU(L)}</b></div>` : ''}${showP ? `<div class="mini"><span>프로젝트 수입</span><b class="num" style="color:#8B5CF6">${wonU(P)}</b></div>` : ''}${book !== '사업' && O ? `<div class="mini"><span>기타 수입</span><b class="num">${wonU(O)}</b></div>` : ''}</div></section>`;
   const lg = group(lect, t => uniOf(t.title) || '기타 강의'), pg = group(proj, clientOf);
-  const lCard = showL ? `<section class="card"><h2>대학별 강의 수입</h2>${lg.length ? rowsOf(lg, 'uni', '🎓', '#3182F6', lg[0][1].sum) : `<p class="help" style="margin:0">아직 강의 수입이 없어요. 입금자명에 대학 이름이 있으면 자동으로 대학별로 모아요. 직접 입력할 땐 '수원대 강의료 120만'처럼 적어 주세요.</p>`}</section>` : '';
-  const pCard = showP ? `<section class="card"><h2>프로젝트 수입</h2>${pg.length ? rowsOf(pg, 'client', '🎨', '#8B5CF6', pg[0][1].sum) : `<p class="help" style="margin:0">사업 장부의 수입이 거래처별로 모여요. '사업 OO브랜딩 잔금 300만'처럼 입력하면 바로 반영돼요.</p>`}</section>` : '';
-  // 월별 추이 (올해)
-  const months = []; for (let i = 5; i >= 0; i--) months.push(addMonth(S.ym, -i));
-  const ser = months.map(ym => { const l = inMonth(txs(), ym); return { ym, L: tot(l.filter(isLectureIncome)), P: tot(l.filter(isProjectIncome)) }; });
-  const mx = Math.max(1, ...ser.map(s => (showL ? s.L : 0) + (showP ? s.P : 0)));
-  const trend = (L + P) || ser.some(s => s.L || s.P) ? `<section class="card"><h2>월별 수입 흐름</h2><div class="bars">${ser.map(s => `<div class="bar-col ${s.ym === S.ym ? 'now' : ''}"><div class="bar-pair" style="flex-direction:column;justify-content:flex-end;align-items:center;gap:2px">${showP ? `<i style="height:${s.P / mx * 100}%;width:22px;background:#8B5CF6" title="프로젝트 ${wonU(s.P)}"></i>` : ''}${showL ? `<i style="height:${s.L / mx * 100}%;width:22px;background:var(--blue)" title="강의 ${wonU(s.L)}"></i>` : ''}</div><span>${Number(s.ym.slice(5))}월</span></div>`).join('')}</div>
-    <div class="legend">${showL ? '<span><i style="background:var(--blue)"></i>강의</span>' : ''}${showP ? '<span><i style="background:#8B5CF6"></i>프로젝트</span>' : ''}</div></section>` : '';
-  const incAll = inPeriod.filter(t => t.type === '수입' && (book === '전체' || t.book === book));
-  const ag = group(incAll, t => t.method || '미지정');
-  const aCard = ag.length > 1 ? `<section class="card"><h2>계좌별 입금</h2>${rowsOf(ag, 'acct', '🏦', '#00A661', ag[0][1].sum)}</section>` : '';
-  return summary + lCard + pCard + aCard;
+  const ag = group(inPeriod.filter(t => t.type === '수입'), t => t.method || '미지정');
+  const tab = S.ui.incTab || 'uni';
+  const tabs = [['uni', '대학별', L], ['proj', '프로젝트', P], ['acct', '계좌별', T]];
+  const listOf = tab === 'uni' ? (lg.length ? rowsOf(lg, 'uni', '🎓', '#3182F6', lg[0][1].sum) : '<p class="help" style="margin:8px 0 0">아직 강의 수입이 없어요.</p>')
+    : tab === 'proj' ? (pg.length ? rowsOf(pg, 'client', '🎨', '#8B5CF6', pg[0][1].sum) : '<p class="help" style="margin:8px 0 0">아직 프로젝트 수입이 없어요.</p>')
+    : (ag.length ? rowsOf(ag, 'acct', '🏦', '#00A661', ag[0][1].sum) : '');
+  return `<section class="card">
+    <h2>들어온 돈<span class="mini-seg">${[['year', y + '년'], ['month', Number(S.ym.slice(5)) + '월']].map(([k, l]) => `<button data-iperiod="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</span></h2>
+    <div class="hero-amt num" style="margin:0">${won(T)}<small>원</small></div>
+    ${T ? `<div class="stack" style="margin:12px 0 8px">${L ? `<i style="width:${share(L)}%;background:var(--blue)"></i>` : ''}${P ? `<i style="width:${share(P)}%;background:#8B5CF6"></i>` : ''}${O ? `<i style="width:${share(O)}%;background:var(--faint)"></i>` : ''}</div>
+    <div class="stack-legend"><span><i style="background:var(--blue)"></i>강의 ${shortWon(L)}</span><span><i style="background:#8B5CF6"></i>프로젝트 ${shortWon(P)}</span><span><i style="background:var(--faint)"></i>기타 ${shortWon(O)}</span></div>` : ''}
+    <div class="tabs2">${tabs.map(([k, l]) => `<button data-inctab="${k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div>
+    ${listOf}
+  </section>`;
 }
 
 /* ───────────────────────── 정기결제 ─────────────────────────
@@ -991,6 +973,8 @@ function bindMain() {
   document.querySelectorAll('[data-acct]').forEach(b => b.onclick = () => { S.filter = { type: '수입', q: '', method: '', acct: b.dataset.acct }; S.ui.tab = 'list'; render(); window.scrollTo(0, 0); });
   document.querySelectorAll('[data-regday]').forEach(b => b.onclick = () => { const d = Number(b.dataset.regday); S.ui.regDay = S.ui.regDay === d ? null : d; render(); });
   document.querySelectorAll('[data-regym]').forEach(b => b.onclick = () => { S.ui.regYm = b.dataset.regym; S.ui.regDay = null; render(); });
+  document.querySelectorAll('[data-inctab]').forEach(b => b.onclick = () => { S.ui.incTab = b.dataset.inctab; saveUI(); render(); });
+  document.querySelectorAll('[data-act="catall"]').forEach(b => b.onclick = () => { S.ui.catAll = !S.ui.catAll; render(); });
   document.querySelectorAll('[data-iperiod]').forEach(b => b.onclick = () => { S.ui.iperiod = b.dataset.iperiod; saveUI(); render(); });
   const q = $('#q'); if (q) q.oninput = () => { S.filter.q = q.value; const pos = q.selectionStart; render(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
   const qf = $('#quickForm');

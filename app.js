@@ -992,7 +992,7 @@ function viewRegular() {
       <div class="cal-grid">${cells}</div>
       ${dayList ? `<div class="cal-day"><div class="cal-day-h">${Number(ym.slice(5))}월 ${sel}일 · ${wonU(dayList.reduce((a, p) => a + p.amount, 0))}</div>${dayList.map(p => item(p, sub(p))).join('')}</div>` : '<p class="hint" style="text-align:center">금액이 적힌 날짜를 누르면 결제 내역을 보여 드려요.</p>'}
     </section>
-    ${upcoming.length ? `<section class="card"><h2>다가오는 결제</h2>${upcoming.slice(0, 8).map(u => `<div class="up-row"><span class="dday ${u.diff <= 3 ? 'soon' : ''}">${u.diff === 0 ? '오늘' : 'D-' + u.diff}</span>${item(u.p, Number(u.due.slice(5, 7)) + '월 ' + Number(u.due.slice(8)) + '일 · ' + esc(u.p.method))}</div>`).join('')}</section>` : ''}
+    ${upcoming.length ? `<section class="card"><h2>앞으로 30일<span class="more" style="pointer-events:none">${upcoming.length}건 · ${shortWon(upcoming.reduce((a, u) => a + u.p.amount, 0))}원</span></h2>${upcoming.map(u => `<div class="up-row"><span class="dday ${u.diff <= 3 ? 'soon' : ''}">${u.diff === 0 ? '오늘' : 'D-' + u.diff}</span>${item(u.p, Number(u.due.slice(5, 7)) + '월 ' + Number(u.due.slice(8)) + '일 · ' + esc(u.p.method))}</div>`).join('')}</section>` : ''}
     <section class="card"><h2>항목별 정기결제</h2>
       ${gArr.map(([g, l, s]) => `<details class="grp" ${gArr.length <= 3 ? 'open' : ''}><summary><span class="ico" style="background:${REG_GROUPS[g].color}1F">${REG_GROUPS[g].icon}</span><span class="row-main"><span class="row-title">${g}</span><span class="row-sub">${l.length}건</span></span><span class="row-amt num">월 ${wonU(s)}</span></summary>
         ${l.sort((a, b) => b.amount - a.amount).map(p => item(p, sub(p))).join('')}</details>`).join('')}

@@ -52,7 +52,7 @@ const RULES = [
   [/꽃|축의|부의|선물/, '경조사·선물'],
   [/학원|클래스|강의|인프런|패스트캠퍼스|유데미|UDEMY|COURSERA/i, '교육'],
   [/식당|반점|분식|김밥|국밥|치킨|피자|버거|맥도날드|롯데리아|맘스터치|배달의민족|배민|요기요|쿠팡이츠|고기|횟집|초밥|스시|라멘|돈까스|족발|보쌈|찜|탕|한식|중식|일식|양식|술집|포차|호프|이자카야|점심|저녁|아침|식사/, '식비'],
-  [/월급|급여|강의료|강사료|인건비/, '급여·강의료'],
+  [/월급|급여|강의료|강사료|강의요원|인건비/, '급여·강의료'],
   [/이자|환급|캐시백/, '이자·환급']
 ];
 const BIZ_MAP = { '구독': '소프트웨어·구독', '소프트웨어·구독': '소프트웨어·구독', '교통': '교통·출장', '여행': '교통·출장', '식비': '접대·회의', '카페·간식': '접대·회의', '쇼핑': '장비·소모품', '생활·마트': '장비·소모품', '주거·통신': '통신·사무' };
@@ -194,8 +194,8 @@ function uniOf(title) {
   let name = m[1].replace(/^(학교법인|국립|사립)/, '') + '대학교';
   return UNI_ALIAS[m[1] + '대'] || name;
 }
-/* 입금자명에 학교가 없을 때: 메모 → 알려진 입금 패턴(과기대: 'N월강의료' → 우리은행 U드림) */
-function uniTx(t) { return uniOf(t.title) || uniOf(t.memo) || (/^\d{1,2}월\s?강의료$/.test(String(t.title).trim()) && /U드림/.test(t.method || '') ? '서울과학기술대학교' : ''); }
+/* 입금자명에 학교가 없을 때: 메모 → 알려진 입금 패턴(과기대: 'N월강의료' → 우리은행 U드림, 홍익대: 강의요원장학) */
+function uniTx(t) { return uniOf(t.title) || uniOf(t.memo) || (/강의요원/.test(t.title) ? '홍익대학교' : '') || (/^\d{1,2}월\s?강의료$/.test(String(t.title).trim()) && /U드림/.test(t.method || '') ? '서울과학기술대학교' : ''); }
 const isLectureIncome = t => t.type === '수입' && t.book !== '사업' && (!!uniTx(t) || /강의|강사|교원|시간강사|겸임/.test(t.title + ' ' + (t.memo || '')));
 const isProjectIncome = t => t.type === '수입' && t.book === '사업';
 function clientOf(t) { return String(t.title || '').replace(/\(주\)|㈜|주식회사|유한회사/g, '').trim() || '거래처 미기재'; }
@@ -384,7 +384,7 @@ function analyzeBanksalad(rows, hi) {
       if (/쿠팡/.test(title)) return push(r, '지출', '개인', '쇼핑');
       return push(r, '이체', '공통', '송금');
     }
-    if (/강의료|강사료|대학교|대학/.test(title)) return push(r, '수입', '개인', '급여·강의료');
+    if (/강의료|강사료|강의요원|대학교|대학/.test(title)) return push(r, '수입', '개인', '급여·강의료');
     if (/심사비|자문료|강연료/.test(title)) return push(r, '수입', '사업', '강연·자문');
     if (/퇴직금/.test(title)) return push(r, '수입', '개인', '기타수입');
     if (/\(주\)|㈜|주식회사|학회|협회|재단/.test(title)) { const bk = guessIncomeBook(title); return push(r, '수입', bk, guessCategory(title, '수입', bk)); }

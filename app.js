@@ -766,6 +766,24 @@ function viewStats() {
 }
 
 /* 수입 분석: 대학별 강의 수입 + 프로젝트(거래처)별 수입 */
+/* 큰 입금(50만원 이상) 타임라인 */
+function bigIncome(list, per) {
+  const big = list.filter(t => t.type === '수입' && Number(t.amount) >= 500000).sort((a, b) => b.date.localeCompare(a.date));
+  if (!big.length) return '<p class="help" style="margin:8px 0 0">50만원 이상 입금이 없어요.</p>';
+  const kind = t => isLectureIncome(t) ? ['강의', '#3182F6', '🎓'] : isProjectIncome(t) ? ['프로젝트', '#8B5CF6', '🎨'] : ['기타', '#8B95A1', '💰'];
+  const who = t => isLectureIncome(t) ? (uniTx(t) || t.title) : isProjectIncome(t) ? clientOf(t) : t.title;
+  // 같은 곳에서 2번 이상 → 보통 입금일
+  const days = {}; txs().filter(t => t.type === '수입' && Number(t.amount) >= 500000).forEach(t => (days[who(t)] = days[who(t)] || []).push(Number(t.date.slice(8))));
+  const usual = k => { const d = days[k]; if (!d || d.length < 2) return ''; const s = [...d].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+  let lastM = '', html = '';
+  big.forEach(t => {
+    const m = t.date.slice(0, 7);
+    if (per === 'year' && m !== lastM) { html += `<div class="bi-month">${Number(m.slice(5))}월 <span class="num">${shortWon(big.filter(x => x.date.slice(0, 7) === m).reduce((a, x) => a + Number(x.amount), 0))}</span></div>`; lastM = m; }
+    const [kl, kc, ki] = kind(t), w = who(t), u = usual(w);
+    html += `<div class="bi-row"><span class="bi-date num"><b>${Number(t.date.slice(8))}</b><em>${Number(t.date.slice(5, 7))}월</em></span><span class="ico" style="background:${kc}1F">${ki}</span><span class="row-main"><span class="row-title">${esc(w)}</span><span class="row-sub">${kl}${u ? ` · 보통 ${u}일` : ''}</span></span><span class="row-amt num in">+${shortWon(Number(t.amount))}</span></div>`;
+  });
+  return `<div class="bi">${html}</div>`;
+}
 function viewIncome(book) {
   const per = S.ui.iperiod || 'year';
   const y = S.ym.slice(0, 4);
@@ -786,9 +804,9 @@ function viewIncome(book) {
   const share = (v) => T ? Math.round(v / T * 100) : 0;
   const lg = group(lect, t => uniTx(t) || '기타 강의'), pg = group(proj, clientOf);
   const ag = group(inPeriod.filter(t => t.type === '수입'), t => t.method || '미지정');
-  const tab = S.ui.incTab || 'uni';
-  const tabs = [['uni', '대학별', L], ['proj', '프로젝트', P], ['acct', '계좌별', T]];
-  const listOf = tab === 'uni' ? (lg.length ? rowsOf(lg, 'uni', '🎓', '#3182F6', lg[0][1].sum) : '<p class="help" style="margin:8px 0 0">아직 강의 수입이 없어요.</p>')
+  const tab = S.ui.incTab || 'big';
+  const tabs = [['big', '입금일', 0], ['uni', '대학별', L], ['proj', '프로젝트', P], ['acct', '계좌별', T]];
+  const listOf = tab === 'big' ? bigIncome(inPeriod, per) : tab === 'uni' ? (lg.length ? rowsOf(lg, 'uni', '🎓', '#3182F6', lg[0][1].sum) : '<p class="help" style="margin:8px 0 0">아직 강의 수입이 없어요.</p>')
     : tab === 'proj' ? (pg.length ? rowsOf(pg, 'client', '🎨', '#8B5CF6', pg[0][1].sum) : '<p class="help" style="margin:8px 0 0">아직 프로젝트 수입이 없어요.</p>')
     : (ag.length ? rowsOf(ag, 'acct', '🏦', '#00A661', ag[0][1].sum) : '');
   return `<section class="card">
